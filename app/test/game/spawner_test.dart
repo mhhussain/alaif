@@ -15,6 +15,10 @@ void main() {
 
   testWithGame<AlaifGame>('spawner emits letters or bombs over time',
       AlaifGame.new, (game) async {
+    game.startGame();
+    game.update(0);
+    game.children.whereType<Spawner>().forEach((s) => s.removeFromParent());
+    game.update(0);
     game.add(Spawner(random: Random(42)));
     game.update(0); // mount
 

@@ -15,10 +15,11 @@ class Spawner extends Component with HasGameReference<AlaifGame> {
   final Random _random;
   final DifficultyCurve _curve = DifficultyCurve();
   double _elapsed = 0;
-  double _untilNext = 0.5;
+  double _untilNext = 0.5; // quick first spawn; thereafter the curve governs
 
   @override
   void update(double dt) {
+    if (!game.isPlaying) return;
     _elapsed += dt;
     _untilNext -= dt;
     if (_untilNext <= 0) {
@@ -31,9 +32,9 @@ class Spawner extends Component with HasGameReference<AlaifGame> {
     final screen = game.size;
     final x = screen.x * (0.15 + 0.7 * _random.nextDouble());
     final start = Vector2(x, screen.y + 60);
-    // Drift toward screen center; rise to roughly 70–95% of screen height.
+    // Drift toward screen center; apex lands at 70–95% of screen height.
     final vx = (screen.x / 2 - x) * (0.3 + 0.4 * _random.nextDouble());
-    final vy = -screen.y * (0.95 + 0.25 * _random.nextDouble());
+    final vy = -screen.y * (0.877 + 0.145 * _random.nextDouble());
     final motion = ArcMotion(
       start: start,
       velocity: Vector2(vx, vy),
