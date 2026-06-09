@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flame/game.dart';
@@ -11,6 +12,7 @@ import '../services/high_score_store.dart';
 import 'bomb_component.dart';
 import 'letter_component.dart';
 import 'sliced_halves.dart';
+import 'spawner.dart';
 
 class AlaifGame extends FlameGame {
   AlaifGame({HighScoreStore? highScores})
@@ -45,9 +47,14 @@ class AlaifGame extends FlameGame {
     rules.reset();
     children
         .where((c) =>
-            c is LetterComponent || c is BombComponent || c is SlicedHalf)
+            c is LetterComponent ||
+            c is BombComponent ||
+            c is SlicedHalf ||
+            c is Spawner)
         .toList()
         .forEach((c) => c.removeFromParent());
+    add(Spawner());
+    if (paused) resumeEngine(); // close the pause-then-restart gap
     _playing = true;
     overlays.remove('menu');
     overlays.remove('gameOver');
@@ -119,7 +126,7 @@ class AlaifGame extends FlameGame {
   void _checkGameOver() {
     if (!rules.isGameOver || !_playing) return;
     _playing = false;
-    highScores.submit(scoreState.score);
+    unawaited(highScores.submit(scoreState.score)); // fire-and-forget by design
     overlays.add('gameOver');
   }
 
