@@ -29,4 +29,14 @@ void main() {
     expect(rules.lives, 3);
     expect(rules.isGameOver, isFalse);
   });
+
+  test('lives never go below zero', () {
+    final rules = GameRules();
+    rules.onBombSliced();
+    rules.onBombSliced();
+    rules.onBombSliced();
+    rules.onBombSliced();
+    expect(rules.lives, 0);
+    expect(rules.isGameOver, isTrue);
+  });
 }
