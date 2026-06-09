@@ -22,6 +22,7 @@ class GlyphAtlas {
   }
 
   Future<void> load({double fontSize = 120, String? fontFamily}) async {
+    if (_images.isNotEmpty) return; // idempotent — images are native resources
     for (final letter in letters) {
       _images[letter] =
           await renderGlyph(letter, fontSize: fontSize, fontFamily: fontFamily);
@@ -35,10 +36,19 @@ class GlyphAtlas {
   }) async {
     final recorder = ui.PictureRecorder();
     final canvas = ui.Canvas(recorder);
+    // Layout once without paint to measure the true glyph height.
+    final measure = TextPainter(
+      text: TextSpan(
+        text: letter,
+        style: TextStyle(fontSize: fontSize, fontFamily: fontFamily),
+      ),
+      textDirection: TextDirection.rtl,
+    )..layout();
+    final glyphHeight = math.max(measure.height, fontSize);
     final foreground = Paint()
       ..shader = ui.Gradient.linear(
         Offset.zero,
-        Offset(0, fontSize),
+        Offset(0, glyphHeight),
         const [Color(0xFFFFD97A), Color(0xFFFF9D3D)],
       );
     final painter = TextPainter(
