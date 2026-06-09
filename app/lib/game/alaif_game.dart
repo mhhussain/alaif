@@ -11,6 +11,8 @@ import '../core/score_state.dart';
 import '../services/high_score_store.dart';
 import 'bomb_component.dart';
 import 'letter_component.dart';
+import 'blade_trail.dart';
+import 'hud.dart';
 import 'sliced_halves.dart';
 import 'spawner.dart';
 
@@ -25,6 +27,8 @@ class AlaifGame extends FlameGame {
 
   bool _playing = false;
   bool get isPlaying => _playing;
+
+  bool _hudInstalled = false;
 
   @override
   Color backgroundColor() => const Color(0xFF120C1D);
@@ -54,6 +58,11 @@ class AlaifGame extends FlameGame {
         .toList()
         .forEach((c) => c.removeFromParent());
     add(Spawner());
+    if (!_hudInstalled) {
+      _hudInstalled = true;
+      add(BladeTrail());
+      add(Hud());
+    }
     if (paused) resumeEngine(); // close the pause-then-restart gap
     _playing = true;
     overlays.remove('menu');
