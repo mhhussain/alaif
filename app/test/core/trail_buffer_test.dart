@@ -24,4 +24,11 @@ void main() {
     buffer.clear();
     expect(buffer.points, isEmpty);
   });
+
+  test('point exactly maxAge old is retained', () {
+    final buffer = TrailBuffer(maxAge: 0.1);
+    buffer.add(Vector2(0, 0), 0.0);
+    buffer.prune(0.1);
+    expect(buffer.points.length, 1);
+  });
 }

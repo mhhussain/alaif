@@ -10,6 +10,7 @@ class ArcMotion {
   final Vector2 _velocity;
   final double gravity;
 
+  /// Returns the position [t] seconds after launch.
   Vector2 positionAt(double t) => Vector2(
         _start.x + _velocity.x * t,
         _start.y + _velocity.y * t + 0.5 * gravity * t * t,

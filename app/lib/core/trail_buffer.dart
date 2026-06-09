@@ -1,5 +1,6 @@
 import 'package:flame/components.dart';
 
+/// An immutable snapshot of a swipe position and the game-time it was recorded.
 class TrailPoint {
   TrailPoint(this.position, this.time);
   final Vector2 position;
@@ -20,6 +21,7 @@ class TrailBuffer {
     prune(time);
   }
 
+  /// Removes points strictly older than [maxAge]; a point exactly [maxAge] old is retained.
   void prune(double now) {
     _points.removeWhere((p) => now - p.time > maxAge);
   }

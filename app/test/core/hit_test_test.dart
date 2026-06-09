@@ -36,4 +36,15 @@ void main() {
       isTrue,
     );
   });
+
+  test('boundary distance counts as a hit', () {
+    expect(
+      segmentHitsCircle(Vector2(0, 0), Vector2(10, 0), Vector2(20, 0), 10),
+      isTrue,
+    );
+    expect(
+      segmentHitsCircle(Vector2(0, 0), Vector2(10, 0), Vector2(20.01, 0), 10),
+      isFalse,
+    );
+  });
 }
