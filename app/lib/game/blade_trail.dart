@@ -34,6 +34,7 @@ class BladeTrail extends PositionComponent
 
   @override
   void onDragStart(DragStartEvent event) {
+    if (game.paused) return;
     super.onDragStart(event);
     buffer.clear();
     buffer.add(event.localPosition, _time);

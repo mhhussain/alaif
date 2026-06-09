@@ -67,6 +67,7 @@ class AlaifGame extends FlameGame {
     _playing = true;
     overlays.remove('menu');
     overlays.remove('gameOver');
+    overlays.remove('paused');
   }
 
   /// Called by BladeTrail for each new swipe segment.
