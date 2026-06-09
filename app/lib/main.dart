@@ -1,5 +1,37 @@
+import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'game/alaif_game.dart';
+import 'ui/game_over_overlay.dart';
+import 'ui/menu_overlay.dart';
+import 'ui/pause_overlay.dart';
 
 void main() {
-  runApp(const Placeholder());
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  runApp(const AlaifApp());
+}
+
+class AlaifApp extends StatelessWidget {
+  const AlaifApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: SafeArea(
+          child: GameWidget<AlaifGame>.controlled(
+            gameFactory: AlaifGame.new,
+            overlayBuilderMap: {
+              'menu': (context, game) => MenuOverlay(game: game),
+              'gameOver': (context, game) => GameOverOverlay(game: game),
+              'paused': (context, game) => PauseOverlay(game: game),
+            },
+          ),
+        ),
+      ),
+    );
+  }
 }

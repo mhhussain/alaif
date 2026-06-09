@@ -41,6 +41,7 @@ class BladeTrail extends PositionComponent
 
   @override
   void onDragUpdate(DragUpdateEvent event) {
+    if (game.paused) return; // ignore swipes while the pause overlay is up
     final previous =
         buffer.points.isEmpty ? null : buffer.points.last.position;
     buffer.add(event.localEndPosition, _time);
