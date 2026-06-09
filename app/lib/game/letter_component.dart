@@ -24,6 +24,7 @@ class LetterComponent extends PositionComponent {
   bool entered = false;
 
   ui.Image get image => _image;
+  /// Circular hit approximation using half-width; tall glyphs have a smaller vertical hit extent by design.
   double get hitRadius => size.x / 2;
 
   @override

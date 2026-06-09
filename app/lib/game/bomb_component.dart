@@ -15,6 +15,7 @@ class BombComponent extends PositionComponent {
   double _age = 0;
   bool entered = false;
 
+  /// Circular hit approximation using half-width; tall glyphs have a smaller vertical hit extent by design.
   double get hitRadius => size.x / 2;
 
   @override

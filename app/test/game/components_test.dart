@@ -41,6 +41,7 @@ void main() {
   });
 
   test('sliced half falls and removes itself below the cutoff', () async {
+    // removeFromParent() is a no-op outside a FlameGame; position advancement is the observable proxy for update being called.
     final image = await testImage();
     final half = SlicedHalf(
       image: image,
