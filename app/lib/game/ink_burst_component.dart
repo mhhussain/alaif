@@ -16,6 +16,8 @@ class InkBurstComponent extends Component {
 
   final List<InkParticle> particles;
 
+  final ui.Paint _paint = ui.Paint();
+
   @override
   void update(double dt) {
     for (final p in particles) {
@@ -28,10 +30,11 @@ class InkBurstComponent extends Component {
   void render(ui.Canvas canvas) {
     for (final p in particles) {
       if (p.dead) continue;
+      _paint.color = p.color.withValues(alpha: p.opacity);
       canvas.drawCircle(
         ui.Offset(p.position.x, p.position.y),
         p.radius,
-        ui.Paint()..color = p.color.withValues(alpha: p.opacity),
+        _paint,
       );
     }
   }

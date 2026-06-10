@@ -15,6 +15,7 @@ class ComboCallout extends PositionComponent with HasGameReference<AlaifGame> {
   final String text;
   double _ageMs = 0;
   late final TextPainter _painter;
+  final ui.Paint _layerPaint = ui.Paint();
 
   /// Spell out the chains the spec names; bigger chains read as a counter.
   static String comboText(int hits) {
@@ -54,10 +55,8 @@ class ComboCallout extends PositionComponent with HasGameReference<AlaifGame> {
   void render(ui.Canvas canvas) {
     final t = (_ageMs / AlaifMotion.comboFlashMs).clamp(0.0, 1.0);
     final bounds = ui.Rect.fromLTWH(0, 0, size.x, size.y).inflate(8);
-    canvas.saveLayer(
-      bounds,
-      ui.Paint()..color = const ui.Color(0xFF000000).withValues(alpha: 1 - t),
-    );
+    _layerPaint.color = const ui.Color(0xFF000000).withValues(alpha: 1 - t);
+    canvas.saveLayer(bounds, _layerPaint);
     _painter.paint(canvas, ui.Offset.zero);
     canvas.restore();
   }
