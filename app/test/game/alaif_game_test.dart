@@ -6,6 +6,7 @@ import 'package:alaif/game/combo_callout.dart';
 import 'package:alaif/game/ink_burst_component.dart';
 import 'package:alaif/game/letter_component.dart';
 import 'package:alaif/game/sliced_halves.dart';
+import 'package:alaif/services/haptics_service.dart';
 import 'package:flame/components.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +18,16 @@ LetterComponent staticLetter(AlaifGame game, {double x = 100, double y = 300}) {
     image: game.atlas.imageFor('ب'),
     motion: ArcMotion(start: Vector2(x, y), velocity: Vector2.zero(), gravity: 0),
   );
+}
+
+class RecordingHaptics extends HapticsService {
+  final events = <String>[];
+  @override
+  void onSlice() => events.add('slice');
+  @override
+  void onBomb() => events.add('bomb');
+  @override
+  void onMiss() => events.add('miss');
 }
 
 void main() {
@@ -173,5 +184,30 @@ void main() {
     game.update(0);
 
     expect(game.children.whereType<ComboCallout>(), isEmpty);
+  });
+
+  testWithGame<AlaifGame>('haptics fire on slice, bomb, and miss',
+      () => AlaifGame(haptics: RecordingHaptics()), (game) async {
+    final haptics = game.haptics as RecordingHaptics;
+    game.startGame();
+    game.add(staticLetter(game));
+    game.update(0);
+    game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    expect(haptics.events, ['slice']);
+
+    game.add(BombComponent(
+      motion: ArcMotion(
+          start: Vector2(100, 300), velocity: Vector2.zero(), gravity: 0),
+    ));
+    game.update(0);
+    game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    expect(haptics.events, ['slice', 'bomb']);
+
+    final missed = staticLetter(game)..entered = true;
+    game.add(missed);
+    game.update(0);
+    missed.position.y = game.size.y + 500;
+    game.update(0);
+    expect(haptics.events, ['slice', 'bomb', 'miss']);
   });
 }

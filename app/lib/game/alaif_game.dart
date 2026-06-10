@@ -10,6 +10,7 @@ import '../core/glyph_atlas.dart';
 import '../core/hit_test.dart';
 import '../core/ink_particles.dart';
 import '../core/score_state.dart';
+import '../services/haptics_service.dart';
 import '../services/high_score_store.dart';
 import '../ui/design_tokens.dart';
 import 'bomb_component.dart';
@@ -23,14 +24,16 @@ import 'sliced_halves.dart';
 import 'spawner.dart';
 
 class AlaifGame extends FlameGame {
-  AlaifGame({HighScoreStore? highScores, Random? random})
+  AlaifGame({HighScoreStore? highScores, HapticsService? haptics, Random? random})
       : highScores = highScores ?? HighScoreStore(),
+        haptics = haptics ?? HapticsService(),
         _random = random ?? Random();
 
   final GlyphAtlas atlas = GlyphAtlas();
   final ScoreState scoreState = ScoreState();
   final GameRules rules = GameRules();
   final HighScoreStore highScores;
+  final HapticsService haptics;
   final Random _random;
   Vector2? _lastSlicePosition;
 
@@ -93,6 +96,7 @@ class AlaifGame extends FlameGame {
       if (segmentHitsCircle(from, to, bomb.position, bomb.hitRadius)) {
         bomb.removeFromParent();
         rules.onBombSliced();
+        haptics.onBomb();
         _checkGameOver();
       }
     }
@@ -113,6 +117,7 @@ class AlaifGame extends FlameGame {
 
   void _sliceLetter(LetterComponent letter) {
     scoreState.registerHit();
+    haptics.onSlice();
     letter.removeFromParent();
     _lastSlicePosition = letter.position.clone();
     add(InkBurstComponent(
@@ -147,6 +152,7 @@ class AlaifGame extends FlameGame {
         if (letter.entered && letter.position.y > size.y + 120) {
           letter.removeFromParent();
           rules.onLetterMissed();
+          haptics.onMiss();
           _checkGameOver();
         }
       }
