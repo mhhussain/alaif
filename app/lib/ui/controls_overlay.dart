@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../game/alaif_game.dart';
+import 'design_tokens.dart';
 
 class ControlsOverlay extends StatelessWidget {
   const ControlsOverlay({super.key, required this.game});
@@ -15,7 +16,7 @@ class ControlsOverlay extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: IconButton(
-            icon: const Icon(Icons.pause, color: Colors.white70, size: 32),
+            icon: const Icon(Icons.pause, color: AlaifColors.inkMuted, size: 32),
             onPressed: game.pauseGame,
           ),
         ),
