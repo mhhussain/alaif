@@ -35,9 +35,17 @@ void main() {
     expect(find.text('Play Again'), findsOneWidget);
   });
 
-  testWidgets('pause overlay shows Resume', (tester) async {
-    await tester
-        .pumpWidget(MaterialApp(home: PauseOverlay(game: AlaifGame())));
+  testWidgets('pause overlay shows score and all four actions', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: buildAlaifTheme(),
+      home: Scaffold(body: PauseOverlay(game: AlaifGame())),
+    ));
+    expect(find.text('PAUSED'), findsOneWidget);
+    expect(find.text('CURRENT SCORE'), findsOneWidget);
+    expect(find.text('0'), findsOneWidget);
     expect(find.text('Resume'), findsOneWidget);
+    expect(find.text('Restart'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Quit to menu'), findsOneWidget);
   });
 }
