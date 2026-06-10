@@ -30,6 +30,9 @@ class PaperBackground extends PositionComponent with HasGameReference<AlaifGame>
   ]);
 
   ui.Image? _tile;
+  ui.Paint? _latticePaint;
+  ui.Paint? _gradientPaint;
+  ui.Rect? _gradientRect;
 
   /// True when the lattice tile rendered successfully (false = solid fallback).
   bool get hasLattice => _tile != null;
@@ -64,36 +67,51 @@ class PaperBackground extends PositionComponent with HasGameReference<AlaifGame>
     size = game.size.clone();
     try {
       _tile = await buildLatticeTile();
+      _latticePaint = ui.Paint()
+        ..shader = ui.ImageShader(
+          _tile!,
+          ui.TileMode.repeated,
+          ui.TileMode.repeated,
+          _identityMatrix4,
+        );
     } catch (_) {
       _tile = null; // solid-paper fallback; never fatal
+      _latticePaint = null;
     }
+    _rebuildGradientPaint();
   }
 
   @override
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
     this.size = size.clone();
+    _rebuildGradientPaint();
+  }
+
+  @override
+  void onRemove() {
+    _tile?.dispose();
+    _tile = null;
+    super.onRemove();
+  }
+
+  void _rebuildGradientPaint() {
+    final rect = ui.Rect.fromLTWH(0, 0, size.x, size.y);
+    if (rect == _gradientRect && _gradientPaint != null) return;
+    _gradientRect = rect;
+    _gradientPaint = ui.Paint()..shader = AlaifGradients.paper.createShader(rect);
   }
 
   @override
   void render(ui.Canvas canvas) {
     final rect = ui.Rect.fromLTWH(0, 0, size.x, size.y);
-    canvas.drawRect(
-      rect,
-      ui.Paint()..shader = AlaifGradients.paper.createShader(rect),
-    );
-    final tile = _tile;
-    if (tile != null) {
-      canvas.drawRect(
-        rect,
-        ui.Paint()
-          ..shader = ui.ImageShader(
-            tile,
-            ui.TileMode.repeated,
-            ui.TileMode.repeated,
-            _identityMatrix4,
-          ),
-      );
+    if (rect != _gradientRect || _gradientPaint == null) {
+      _rebuildGradientPaint();
+    }
+    canvas.drawRect(rect, _gradientPaint!);
+    final latticePaint = _latticePaint;
+    if (latticePaint != null) {
+      canvas.drawRect(rect, latticePaint);
     }
   }
 }
