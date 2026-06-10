@@ -1,5 +1,8 @@
 # Log
 
+## [2026-06-10] decision | Ink & Paper M3+M4 plan written
+23-task TDD plan at plans/2026-06-09-ink-and-paper-m3-m4: foundation (tokens/theme/fonts), game-layer migration, juice (particles, combo, HUD, haptics, audio w/ slice SFX from raw/splat.mp3), menus (rebuilt + how-to + settings), final verification. Branch feature/ink-and-paper-m3-m4. Awaiting user review.
+
 ## [2026-06-09] decision | M3+M4 design approved (Ink & Paper)
 Scoped one plan for M3+M4; M5 separate. Full Ink & Paper adoption (paper bg, ink glyphs, lattice). Audio wired with stubbed SFX. Spec: [[alaif-m3-m4-design]]; visual source of truth in raw/design/deliverables/.
 
