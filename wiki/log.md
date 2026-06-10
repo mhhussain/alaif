@@ -1,5 +1,8 @@
 # Log
 
+## [2026-06-09] decision | M3+M4 design approved (Ink & Paper)
+Scoped one plan for M3+M4; M5 separate. Full Ink & Paper adoption (paper bg, ink glyphs, lattice). Audio wired with stubbed SFX. Spec: [[alaif-m3-m4-design]]; visual source of truth in raw/design/deliverables/.
+
 ## [2026-06-09] ingest | Repo bootstrap + SESSION_HANDOFF.md
 Instantiated the LLM Wiki pattern: created CLAUDE.md schema, wiki/ (index, log), raw/, and app/ placeholder. Ingested SESSION_HANDOFF.md into [[game-vision]]. Brainstorming phase begun.
 

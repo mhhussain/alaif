@@ -12,5 +12,6 @@
 
 ## Specs & Plans
 - [[alaif-v1-design]] — approved v1 design spec: decisions, architecture, gameplay, roadmap. (2026-06-09)
+- [[alaif-m3-m4-design]] — M3+M4 spec: Ink & Paper adoption, juice, menus; file map + decisions. (2026-06-09)
 - [plans/2026-06-09-alaif-core-game-m0-m2](plans/2026-06-09-alaif-core-game-m0-m2.md) — implementation plan for M0–M2: 15 TDD tasks from scaffold to playable Classic mode. ✅ Executed. (2026-06-09)
 - [plans/2026-06-09-pause-button](plans/2026-06-09-pause-button.md) — pause button via persistent 'controls' overlay. ✅ Executed. (2026-06-09)
