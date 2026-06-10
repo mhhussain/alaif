@@ -1,4 +1,5 @@
 import 'package:alaif/game/alaif_game.dart';
+import 'package:alaif/ui/alaif_theme.dart';
 import 'package:alaif/ui/game_over_overlay.dart';
 import 'package:alaif/ui/menu_overlay.dart';
 import 'package:alaif/ui/pause_overlay.dart';
@@ -9,12 +10,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({'highScore': 70}));
 
-  testWidgets('menu shows title, best score, and Play', (tester) async {
-    await tester.pumpWidget(MaterialApp(home: MenuOverlay(game: AlaifGame())));
+  testWidgets('menu shows wordmark, best score, Play, and links', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: buildAlaifTheme(),
+      home: Scaffold(body: MenuOverlay(game: AlaifGame())),
+    ));
     await tester.pumpAndSettle();
     expect(find.text('Alaif'), findsOneWidget);
-    expect(find.text('Best: 70'), findsOneWidget);
+    expect(find.text('A SLICING GAME'), findsOneWidget);
+    expect(find.text('BEST'), findsOneWidget);
+    expect(find.text('70'), findsOneWidget);
     expect(find.text('Play'), findsOneWidget);
+    expect(find.text('How to play'), findsOneWidget);
+    expect(find.text('Sound'), findsOneWidget);
   });
 
   testWidgets('game over shows final score and Play Again', (tester) async {
