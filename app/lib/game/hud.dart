@@ -1,7 +1,6 @@
 import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
-import 'package:flame/text.dart';
 
 import '../core/game_rules.dart';
 import '../core/score_format.dart';

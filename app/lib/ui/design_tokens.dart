@@ -11,7 +11,6 @@
 // mark. Cuts throw ink; combos sparkle gold. Spectral for UI text, Aref Ruqaa
 // for the sliced hero glyphs. Everything below is `const` and offline-safe.
 
-import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 
 // ---------------------------------------------------------------------------
