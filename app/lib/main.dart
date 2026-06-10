@@ -9,6 +9,7 @@ import 'ui/game_over_overlay.dart';
 import 'ui/how_to_overlay.dart';
 import 'ui/menu_overlay.dart';
 import 'ui/pause_overlay.dart';
+import 'ui/settings_overlay.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +35,7 @@ class AlaifApp extends StatelessWidget {
               'paused': (context, game) => PauseOverlay(game: game),
               'controls': (context, game) => ControlsOverlay(game: game),
               'howTo': (context, game) => HowToOverlay(game: game),
+              'settings': (context, game) => SettingsOverlay(game: game),
             },
           ),
         ),
