@@ -6,6 +6,7 @@ import 'game/alaif_game.dart';
 import 'ui/alaif_theme.dart';
 import 'ui/controls_overlay.dart';
 import 'ui/game_over_overlay.dart';
+import 'ui/how_to_overlay.dart';
 import 'ui/menu_overlay.dart';
 import 'ui/pause_overlay.dart';
 
@@ -32,6 +33,7 @@ class AlaifApp extends StatelessWidget {
               'gameOver': (context, game) => GameOverOverlay(game: game),
               'paused': (context, game) => PauseOverlay(game: game),
               'controls': (context, game) => ControlsOverlay(game: game),
+              'howTo': (context, game) => HowToOverlay(game: game),
             },
           ),
         ),
