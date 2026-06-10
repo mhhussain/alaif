@@ -1,5 +1,8 @@
 # Log
 
+## [2026-06-10] decision | Ink & Paper M3+M4 plan executed
+All 22 tasks of plans/2026-06-09-ink-and-paper-m3-m4 executed via subagent-driven development on feature/ink-and-paper-m3-m4. 110 tests passing, flutter analyze clean. Each task passed spec + quality review; review fixes: paint/shader hoisting (paper bg, blade, bomb, particles), ui.Image disposal, SafeArea + scroll wrappers on full-screen overlays, ink pause icon. M5 (store prep) next after device testing.
+
 ## [2026-06-10] decision | Ink & Paper M3+M4 plan written
 23-task TDD plan at plans/2026-06-09-ink-and-paper-m3-m4: foundation (tokens/theme/fonts), game-layer migration, juice (particles, combo, HUD, haptics, audio w/ slice SFX from raw/splat.mp3), menus (rebuilt + how-to + settings), final verification. Branch feature/ink-and-paper-m3-m4. Awaiting user review.
 
