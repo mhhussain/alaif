@@ -247,7 +247,6 @@ class AlaifGame extends FlameGame {
             c is Spawner)
         .toList()
         .forEach((c) => c.removeFromParent());
-    update(0);
     overlays.remove('paused');
     overlays.remove('gameOver');
     overlays.remove('controls');

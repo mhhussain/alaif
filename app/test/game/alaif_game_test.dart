@@ -291,6 +291,7 @@ void main() {
     game.pauseGame();
 
     game.quitToMenu();
+    game.update(0);
     expect(game.paused, isFalse); // engine resumed so the menu animates
     expect(game.isPlaying, isFalse);
     expect(game.children.whereType<LetterComponent>(), isEmpty);
