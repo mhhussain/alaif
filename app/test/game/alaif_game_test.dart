@@ -6,6 +6,7 @@ import 'package:alaif/game/combo_callout.dart';
 import 'package:alaif/game/ink_burst_component.dart';
 import 'package:alaif/game/letter_component.dart';
 import 'package:alaif/game/sliced_halves.dart';
+import 'package:alaif/services/audio_service.dart';
 import 'package:alaif/services/haptics_service.dart';
 import 'package:flame/components.dart';
 import 'package:flame_test/flame_test.dart';
@@ -28,6 +29,20 @@ class RecordingHaptics extends HapticsService {
   void onBomb() => events.add('bomb');
   @override
   void onMiss() => events.add('miss');
+}
+
+class RecordingAudio extends AudioService {
+  final events = <String>[];
+  @override
+  Future<void> preload() async => events.add('preload');
+  @override
+  void playSlice() => events.add('slice');
+  @override
+  void playBomb() => events.add('bomb');
+  @override
+  void playCombo() => events.add('combo');
+  @override
+  void playMiss() => events.add('miss');
 }
 
 void main() {
@@ -209,5 +224,22 @@ void main() {
     missed.position.y = game.size.y + 500;
     game.update(0);
     expect(haptics.events, ['slice', 'bomb', 'miss']);
+  });
+
+  testWithGame<AlaifGame>('audio preloads and fires on slice and combo',
+      () => AlaifGame(audio: RecordingAudio()), (game) async {
+    final audio = game.audio as RecordingAudio;
+    expect(audio.events, contains('preload'));
+
+    game.startGame();
+    game.add(staticLetter(game, x: 80));
+    game.add(staticLetter(game, x: 180));
+    game.add(staticLetter(game, x: 280));
+    game.update(0);
+    game.trySlice(Vector2(0, 300), Vector2(360, 300));
+    game.endSwipe();
+
+    expect(audio.events.where((e) => e == 'slice').length, 3);
+    expect(audio.events, contains('combo'));
   });
 }

@@ -10,6 +10,7 @@ import '../core/glyph_atlas.dart';
 import '../core/hit_test.dart';
 import '../core/ink_particles.dart';
 import '../core/score_state.dart';
+import '../services/audio_service.dart';
 import '../services/haptics_service.dart';
 import '../services/high_score_store.dart';
 import '../ui/design_tokens.dart';
@@ -24,8 +25,13 @@ import 'sliced_halves.dart';
 import 'spawner.dart';
 
 class AlaifGame extends FlameGame {
-  AlaifGame({HighScoreStore? highScores, HapticsService? haptics, Random? random})
-      : highScores = highScores ?? HighScoreStore(),
+  AlaifGame({
+    HighScoreStore? highScores,
+    AudioService? audio,
+    HapticsService? haptics,
+    Random? random,
+  })  : highScores = highScores ?? HighScoreStore(),
+        audio = audio ?? AudioService(),
         haptics = haptics ?? HapticsService(),
         _random = random ?? Random();
 
@@ -33,6 +39,7 @@ class AlaifGame extends FlameGame {
   final ScoreState scoreState = ScoreState();
   final GameRules rules = GameRules();
   final HighScoreStore highScores;
+  final AudioService audio;
   final HapticsService haptics;
   final Random _random;
   Vector2? _lastSlicePosition;
@@ -48,6 +55,7 @@ class AlaifGame extends FlameGame {
   @override
   Future<void> onLoad() async {
     await atlas.load();
+    unawaited(audio.preload()); // fire-and-forget; failures are silent
     await add(PaperBackground());
     // Register fallback builders so overlays.add/isActive work in test
     // environments where no GameWidget overlay entries are provided.
@@ -97,6 +105,7 @@ class AlaifGame extends FlameGame {
         bomb.removeFromParent();
         rules.onBombSliced();
         haptics.onBomb();
+        audio.playBomb();
         _checkGameOver();
       }
     }
@@ -113,11 +122,13 @@ class AlaifGame extends FlameGame {
       add(InkBurstComponent(particles: spawnComboBurst(at, _random)));
     }
     add(ComboCallout(text: ComboCallout.comboText(hits)));
+    audio.playCombo();
   }
 
   void _sliceLetter(LetterComponent letter) {
     scoreState.registerHit();
     haptics.onSlice();
+    audio.playSlice();
     letter.removeFromParent();
     _lastSlicePosition = letter.position.clone();
     add(InkBurstComponent(
@@ -153,6 +164,7 @@ class AlaifGame extends FlameGame {
           letter.removeFromParent();
           rules.onLetterMissed();
           haptics.onMiss();
+          audio.playMiss();
           _checkGameOver();
         }
       }
