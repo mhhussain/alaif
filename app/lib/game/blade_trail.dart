@@ -15,6 +15,11 @@ class BladeTrail extends PositionComponent
       TrailBuffer(maxAge: AlaifMotion.bladeRetentionMs / 1000);
   double _time = 0;
 
+  final ui.Paint _bladePaint = ui.Paint()
+    ..color = AlaifColors.bladeInk
+    ..style = ui.PaintingStyle.stroke
+    ..strokeCap = ui.StrokeCap.round;
+
   /// Stroke width for segment [segmentIndex] (1-based) of [segmentCount]
   /// segments. Linear taper: segment 1 (tail, oldest) = bladeMinWidth,
   /// segment [segmentCount] (head, newest) = bladeWidth.
@@ -78,14 +83,11 @@ class BladeTrail extends PositionComponent
     for (var i = 1; i < pts.length; i++) {
       final a = pts[i - 1].position;
       final b = pts[i].position;
+      _bladePaint.strokeWidth = strokeWidthFor(i, segmentCount);
       canvas.drawLine(
         ui.Offset(a.x, a.y),
         ui.Offset(b.x, b.y),
-        ui.Paint()
-          ..color = AlaifColors.bladeInk
-          ..style = ui.PaintingStyle.stroke
-          ..strokeWidth = strokeWidthFor(i, segmentCount)
-          ..strokeCap = ui.StrokeCap.round,
+        _bladePaint,
       );
     }
   }
