@@ -9,10 +9,12 @@ import '../core/glyph_atlas.dart';
 import '../core/hit_test.dart';
 import '../core/score_state.dart';
 import '../services/high_score_store.dart';
+import '../ui/design_tokens.dart';
 import 'bomb_component.dart';
 import 'letter_component.dart';
 import 'blade_trail.dart';
 import 'hud.dart';
+import 'paper_background.dart';
 import 'sliced_halves.dart';
 import 'spawner.dart';
 
@@ -31,11 +33,12 @@ class AlaifGame extends FlameGame {
   bool _hudInstalled = false;
 
   @override
-  Color backgroundColor() => const Color(0xFF120C1D);
+  Color backgroundColor() => AlaifColors.paper;
 
   @override
   Future<void> onLoad() async {
     await atlas.load();
+    await add(PaperBackground());
     // Register fallback builders so overlays.add/isActive work in test
     // environments where no GameWidget overlay entries are provided.
     for (final name in const ['menu', 'gameOver', 'paused', 'controls']) {
