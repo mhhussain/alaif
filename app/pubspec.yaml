@@ -60,6 +60,23 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  fonts:
+    - family: Spectral
+      fonts:
+        - asset: assets/fonts/Spectral-Regular.ttf
+        - asset: assets/fonts/Spectral-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Spectral-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Spectral-MediumItalic.ttf
+          weight: 500
+          style: italic
+    - family: ArefRuqaa
+      fonts:
+        - asset: assets/fonts/ArefRuqaa-Regular.ttf
+        - asset: assets/fonts/ArefRuqaa-Bold.ttf
+          weight: 700
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
