@@ -5,6 +5,7 @@ import 'package:flame/components.dart';
 import '../core/arc_motion.dart';
 import '../core/difficulty_curve.dart';
 import '../core/glyph_atlas.dart';
+import '../ui/design_tokens.dart';
 import 'alaif_game.dart';
 import 'bomb_component.dart';
 import 'letter_component.dart';
@@ -46,10 +47,14 @@ class Spawner extends Component with HasGameReference<AlaifGame> {
     } else {
       final letter =
           GlyphAtlas.letters[_random.nextInt(GlyphAtlas.letters.length)];
+      final targetSize = AlaifGlyph.spawnSizeMin +
+          (AlaifGlyph.spawnSizeMax - AlaifGlyph.spawnSizeMin) *
+              _random.nextDouble();
       game.add(LetterComponent(
         letter: letter,
         image: game.atlas.imageFor(letter),
         motion: motion,
+        targetSize: targetSize,
       ));
     }
   }

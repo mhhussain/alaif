@@ -4,14 +4,31 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 
 import '../core/trail_buffer.dart';
+import '../ui/design_tokens.dart';
 import 'alaif_game.dart';
 
-/// Full-screen drag catcher: records the swipe, draws the trail,
+/// Full-screen drag catcher: records the swipe, draws the brush-ink trail,
 /// and reports each new segment to the game for slicing.
 class BladeTrail extends PositionComponent
     with DragCallbacks, HasGameReference<AlaifGame> {
-  final TrailBuffer buffer = TrailBuffer();
+  final TrailBuffer buffer =
+      TrailBuffer(maxAge: AlaifMotion.bladeRetentionMs / 1000);
   double _time = 0;
+
+  final ui.Paint _bladePaint = ui.Paint()
+    ..color = AlaifColors.bladeInk
+    ..style = ui.PaintingStyle.stroke
+    ..strokeCap = ui.StrokeCap.round;
+
+  /// Stroke width for segment [segmentIndex] (1-based) of [segmentCount]
+  /// segments. Linear taper: segment 1 (tail, oldest) = bladeMinWidth,
+  /// segment [segmentCount] (head, newest) = bladeWidth.
+  static double strokeWidthFor(int segmentIndex, int segmentCount) {
+    if (segmentCount <= 1) return AlaifMotion.bladeWidth;
+    final t = (segmentIndex - 1) / (segmentCount - 1);
+    return AlaifMotion.bladeMinWidth +
+        (AlaifMotion.bladeWidth - AlaifMotion.bladeMinWidth) * t;
+  }
 
   @override
   void onLoad() {
@@ -62,19 +79,16 @@ class BladeTrail extends PositionComponent
   void render(ui.Canvas canvas) {
     final pts = buffer.points;
     if (pts.length < 2) return;
-    final path = ui.Path()
-      ..moveTo(pts.first.position.x, pts.first.position.y);
-    for (final p in pts.skip(1)) {
-      path.lineTo(p.position.x, p.position.y);
+    final segmentCount = pts.length - 1;
+    for (var i = 1; i < pts.length; i++) {
+      final a = pts[i - 1].position;
+      final b = pts[i].position;
+      _bladePaint.strokeWidth = strokeWidthFor(i, segmentCount);
+      canvas.drawLine(
+        ui.Offset(a.x, a.y),
+        ui.Offset(b.x, b.y),
+        _bladePaint,
+      );
     }
-    canvas.drawPath(
-      path,
-      ui.Paint()
-        ..color = const ui.Color(0xFFFFFFFF)
-        ..style = ui.PaintingStyle.stroke
-        ..strokeWidth = 6
-        ..strokeCap = ui.StrokeCap.round
-        ..strokeJoin = ui.StrokeJoin.round,
-    );
   }
 }

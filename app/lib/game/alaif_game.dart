@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:flame/game.dart';
@@ -7,23 +8,46 @@ import 'package:flutter/widgets.dart' show AppLifecycleState, SizedBox;
 import '../core/game_rules.dart';
 import '../core/glyph_atlas.dart';
 import '../core/hit_test.dart';
+import '../core/ink_particles.dart';
 import '../core/score_state.dart';
+import '../services/audio_service.dart';
+import '../services/haptics_service.dart';
 import '../services/high_score_store.dart';
+import '../services/settings.dart';
+import '../ui/design_tokens.dart';
 import 'bomb_component.dart';
+import 'combo_callout.dart';
+import 'ink_burst_component.dart';
 import 'letter_component.dart';
 import 'blade_trail.dart';
 import 'hud.dart';
+import 'paper_background.dart';
 import 'sliced_halves.dart';
 import 'spawner.dart';
 
 class AlaifGame extends FlameGame {
-  AlaifGame({HighScoreStore? highScores})
-      : highScores = highScores ?? HighScoreStore();
+  AlaifGame({
+    HighScoreStore? highScores,
+    AudioService? audio,
+    HapticsService? haptics,
+    SettingsStore? settings,
+    Random? random,
+  })  : highScores = highScores ?? HighScoreStore(),
+        audio = audio ?? AudioService(),
+        haptics = haptics ?? HapticsService(),
+        settings = settings ?? SettingsStore(),
+        _random = random ?? Random();
 
   final GlyphAtlas atlas = GlyphAtlas();
   final ScoreState scoreState = ScoreState();
   final GameRules rules = GameRules();
   final HighScoreStore highScores;
+  final AudioService audio;
+  final HapticsService haptics;
+  final SettingsStore settings;
+  String _settingsReturnOverlay = 'menu';
+  final Random _random;
+  Vector2? _lastSlicePosition;
 
   bool _playing = false;
   bool get isPlaying => _playing;
@@ -31,14 +55,25 @@ class AlaifGame extends FlameGame {
   bool _hudInstalled = false;
 
   @override
-  Color backgroundColor() => const Color(0xFF120C1D);
+  Color backgroundColor() => AlaifColors.paper;
 
   @override
   Future<void> onLoad() async {
     await atlas.load();
+    audio.enabled = await settings.soundEnabled();
+    haptics.enabled = await settings.hapticsEnabled();
+    unawaited(audio.preload()); // fire-and-forget; failures are silent
+    await add(PaperBackground());
     // Register fallback builders so overlays.add/isActive work in test
     // environments where no GameWidget overlay entries are provided.
-    for (final name in const ['menu', 'gameOver', 'paused', 'controls']) {
+    for (final name in const [
+      'menu',
+      'gameOver',
+      'paused',
+      'controls',
+      'howTo',
+      'settings',
+    ]) {
       if (!overlays.registeredOverlays.contains(name)) {
         overlays.addEntry(name, (_, _) => const SizedBox.shrink());
       }
@@ -83,17 +118,36 @@ class AlaifGame extends FlameGame {
       if (segmentHitsCircle(from, to, bomb.position, bomb.hitRadius)) {
         bomb.removeFromParent();
         rules.onBombSliced();
+        haptics.onBomb();
+        audio.playBomb();
         _checkGameOver();
       }
     }
   }
 
-  /// Called by BladeTrail when the finger lifts.
-  void endSwipe() => scoreState.endSwipe();
+  /// Called by BladeTrail when the finger lifts. A 3+ chain earns gold dust
+  /// at the last cut plus the centered combo callout (spec §4.3).
+  void endSwipe() {
+    final hits = scoreState.hitsInSwipe;
+    scoreState.endSwipe();
+    if (!_playing || hits < ScoreState.comboThreshold) return;
+    final at = _lastSlicePosition;
+    if (at != null) {
+      add(InkBurstComponent(particles: spawnComboBurst(at, _random)));
+    }
+    add(ComboCallout(text: ComboCallout.comboText(hits)));
+    audio.playCombo();
+  }
 
   void _sliceLetter(LetterComponent letter) {
     scoreState.registerHit();
+    haptics.onSlice();
+    audio.playSlice();
     letter.removeFromParent();
+    _lastSlicePosition = letter.position.clone();
+    add(InkBurstComponent(
+      particles: spawnCutBurst(letter.position, _random),
+    ));
     final cutoff = size.y + 200;
     add(SlicedHalf(
       image: letter.image,
@@ -101,6 +155,7 @@ class AlaifGame extends FlameGame {
       velocity: Vector2(-120, -150),
       topHalf: true,
       removeBelowY: cutoff,
+      displaySize: letter.size.clone(),
     ));
     add(SlicedHalf(
       image: letter.image,
@@ -108,6 +163,7 @@ class AlaifGame extends FlameGame {
       velocity: Vector2(120, -100),
       topHalf: false,
       removeBelowY: cutoff,
+      displaySize: letter.size.clone(),
     ));
   }
 
@@ -121,6 +177,8 @@ class AlaifGame extends FlameGame {
         if (letter.entered && letter.position.y > size.y + 120) {
           letter.removeFromParent();
           rules.onLetterMissed();
+          haptics.onMiss();
+          audio.playMiss();
           _checkGameOver();
         }
       }
@@ -153,6 +211,46 @@ class AlaifGame extends FlameGame {
     overlays.remove('paused');
     overlays.add('controls');
     resumeEngine();
+  }
+
+  void openHowTo() {
+    overlays.remove('menu');
+    overlays.add('howTo');
+  }
+
+  void closeHowTo() {
+    overlays.remove('howTo');
+    overlays.add('menu');
+  }
+
+  /// [from] is the overlay to return to on [closeSettings]: 'menu' or 'paused'.
+  void openSettings({required String from}) {
+    _settingsReturnOverlay = from;
+    overlays.remove(from);
+    overlays.add('settings');
+  }
+
+  void closeSettings() {
+    overlays.remove('settings');
+    overlays.add(_settingsReturnOverlay);
+  }
+
+  /// Abandon the current run (from pause or game over) and show the menu.
+  void quitToMenu() {
+    _playing = false;
+    if (paused) resumeEngine();
+    children
+        .where((c) =>
+            c is LetterComponent ||
+            c is BombComponent ||
+            c is SlicedHalf ||
+            c is Spawner)
+        .toList()
+        .forEach((c) => c.removeFromParent());
+    overlays.remove('paused');
+    overlays.remove('gameOver');
+    overlays.remove('controls');
+    overlays.add('menu');
   }
 
   @override
