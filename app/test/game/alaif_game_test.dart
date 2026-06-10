@@ -2,6 +2,8 @@ import 'package:alaif/core/arc_motion.dart';
 import 'package:alaif/core/score_state.dart';
 import 'package:alaif/game/alaif_game.dart';
 import 'package:alaif/game/bomb_component.dart';
+import 'package:alaif/game/combo_callout.dart';
+import 'package:alaif/game/ink_burst_component.dart';
 import 'package:alaif/game/letter_component.dart';
 import 'package:alaif/game/sliced_halves.dart';
 import 'package:flame/components.dart';
@@ -123,5 +125,53 @@ void main() {
     game.resumeFromPause();
     expect(game.overlays.isActive('paused'), isFalse);
     expect(game.overlays.isActive('controls'), isTrue);
+  });
+
+  testWithGame<AlaifGame>('slicing a letter throws an ink burst',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    game.add(staticLetter(game));
+    game.update(0);
+
+    game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.update(0);
+
+    expect(game.children.whereType<InkBurstComponent>().length, 1);
+  });
+
+  testWithGame<AlaifGame>('a 3-letter swipe shows the combo callout and gold dust',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    game.add(staticLetter(game, x: 80));
+    game.add(staticLetter(game, x: 180));
+    game.add(staticLetter(game, x: 280));
+    game.update(0);
+
+    game.trySlice(Vector2(0, 300), Vector2(360, 300));
+    game.update(0);
+    game.endSwipe();
+    game.update(0);
+
+    final callouts = game.children.whereType<ComboCallout>().toList();
+    expect(callouts.length, 1);
+    expect(callouts.single.text, 'three in a row');
+    // One ink burst per letter + one gold-dust combo burst.
+    expect(game.children.whereType<InkBurstComponent>().length, 4);
+    expect(game.scoreState.bestCombo, 3);
+  });
+
+  testWithGame<AlaifGame>('a 2-letter swipe shows no combo callout',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    game.add(staticLetter(game, x: 80));
+    game.add(staticLetter(game, x: 180));
+    game.update(0);
+
+    game.trySlice(Vector2(0, 300), Vector2(360, 300));
+    game.update(0);
+    game.endSwipe();
+    game.update(0);
+
+    expect(game.children.whereType<ComboCallout>(), isEmpty);
   });
 }

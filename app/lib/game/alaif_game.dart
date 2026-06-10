@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:flame/game.dart';
@@ -7,10 +8,13 @@ import 'package:flutter/widgets.dart' show AppLifecycleState, SizedBox;
 import '../core/game_rules.dart';
 import '../core/glyph_atlas.dart';
 import '../core/hit_test.dart';
+import '../core/ink_particles.dart';
 import '../core/score_state.dart';
 import '../services/high_score_store.dart';
 import '../ui/design_tokens.dart';
 import 'bomb_component.dart';
+import 'combo_callout.dart';
+import 'ink_burst_component.dart';
 import 'letter_component.dart';
 import 'blade_trail.dart';
 import 'hud.dart';
@@ -19,13 +23,16 @@ import 'sliced_halves.dart';
 import 'spawner.dart';
 
 class AlaifGame extends FlameGame {
-  AlaifGame({HighScoreStore? highScores})
-      : highScores = highScores ?? HighScoreStore();
+  AlaifGame({HighScoreStore? highScores, Random? random})
+      : highScores = highScores ?? HighScoreStore(),
+        _random = random ?? Random();
 
   final GlyphAtlas atlas = GlyphAtlas();
   final ScoreState scoreState = ScoreState();
   final GameRules rules = GameRules();
   final HighScoreStore highScores;
+  final Random _random;
+  Vector2? _lastSlicePosition;
 
   bool _playing = false;
   bool get isPlaying => _playing;
@@ -91,12 +98,26 @@ class AlaifGame extends FlameGame {
     }
   }
 
-  /// Called by BladeTrail when the finger lifts.
-  void endSwipe() => scoreState.endSwipe();
+  /// Called by BladeTrail when the finger lifts. A 3+ chain earns gold dust
+  /// at the last cut plus the centered combo callout (spec §4.3).
+  void endSwipe() {
+    final hits = scoreState.hitsInSwipe;
+    scoreState.endSwipe();
+    if (!_playing || hits < ScoreState.comboThreshold) return;
+    final at = _lastSlicePosition;
+    if (at != null) {
+      add(InkBurstComponent(particles: spawnComboBurst(at, _random)));
+    }
+    add(ComboCallout(text: ComboCallout.comboText(hits)));
+  }
 
   void _sliceLetter(LetterComponent letter) {
     scoreState.registerHit();
     letter.removeFromParent();
+    _lastSlicePosition = letter.position.clone();
+    add(InkBurstComponent(
+      particles: spawnCutBurst(letter.position, _random),
+    ));
     final cutoff = size.y + 200;
     add(SlicedHalf(
       image: letter.image,

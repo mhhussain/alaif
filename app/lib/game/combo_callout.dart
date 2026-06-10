@@ -30,7 +30,7 @@ class ComboCallout extends PositionComponent with HasGameReference<AlaifGame> {
   }
 
   @override
-  Future<void> onLoad() async {
+  void onLoad() {
     _painter = TextPainter(
       text: TextSpan(text: text, style: AlaifType.combo),
       textDirection: TextDirection.ltr,

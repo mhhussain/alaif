@@ -41,4 +41,30 @@ void main() {
     expect(state.score, 0);
     expect(state.hitsInSwipe, 0);
   });
+
+  test('bestCombo records the largest chain of the run', () {
+    final state = ScoreState();
+    expect(state.bestCombo, 0);
+    state.registerHit();
+    state.endSwipe();
+    expect(state.bestCombo, 1);
+    state.registerHit();
+    state.registerHit();
+    state.registerHit();
+    state.endSwipe();
+    expect(state.bestCombo, 3);
+    state.registerHit();
+    state.endSwipe();
+    expect(state.bestCombo, 3); // smaller swipe doesn't shrink it
+  });
+
+  test('reset clears bestCombo', () {
+    final state = ScoreState();
+    state.registerHit();
+    state.registerHit();
+    state.registerHit();
+    state.endSwipe();
+    state.reset();
+    expect(state.bestCombo, 0);
+  });
 }
