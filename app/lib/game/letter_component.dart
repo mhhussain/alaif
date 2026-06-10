@@ -1,16 +1,21 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
 
 import '../core/arc_motion.dart';
+import '../ui/design_tokens.dart';
 
 class LetterComponent extends PositionComponent {
   LetterComponent({
     required this.letter,
     required ui.Image image,
     required this.motion,
+    double targetSize = AlaifGlyph.spawnSizeMax,
   }) : _image = image {
-    size = Vector2(image.width.toDouble(), image.height.toDouble());
+    final longest = math.max(image.width, image.height).toDouble();
+    final scale = targetSize / longest;
+    size = Vector2(image.width * scale, image.height * scale);
     anchor = Anchor.center;
     position = motion.positionAt(0);
   }
@@ -36,6 +41,11 @@ class LetterComponent extends PositionComponent {
 
   @override
   void render(ui.Canvas canvas) {
-    canvas.drawImage(_image, ui.Offset.zero, ui.Paint());
+    canvas.drawImageRect(
+      _image,
+      ui.Rect.fromLTWH(0, 0, _image.width.toDouble(), _image.height.toDouble()),
+      ui.Rect.fromLTWH(0, 0, size.x, size.y),
+      ui.Paint(),
+    );
   }
 }

@@ -104,6 +104,7 @@ class AlaifGame extends FlameGame {
       velocity: Vector2(-120, -150),
       topHalf: true,
       removeBelowY: cutoff,
+      displaySize: letter.size.clone(),
     ));
     add(SlicedHalf(
       image: letter.image,
@@ -111,6 +112,7 @@ class AlaifGame extends FlameGame {
       velocity: Vector2(120, -100),
       topHalf: false,
       removeBelowY: cutoff,
+      displaySize: letter.size.clone(),
     ));
   }
 
