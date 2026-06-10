@@ -38,7 +38,7 @@ class AlaifGame extends FlameGame {
     await atlas.load();
     // Register fallback builders so overlays.add/isActive work in test
     // environments where no GameWidget overlay entries are provided.
-    for (final name in const ['menu', 'gameOver', 'paused']) {
+    for (final name in const ['menu', 'gameOver', 'paused', 'controls']) {
       if (!overlays.registeredOverlays.contains(name)) {
         overlays.addEntry(name, (_, _) => const SizedBox.shrink());
       }
@@ -68,6 +68,7 @@ class AlaifGame extends FlameGame {
     overlays.remove('menu');
     overlays.remove('gameOver');
     overlays.remove('paused');
+    overlays.add('controls');
   }
 
   /// Called by BladeTrail for each new swipe segment.
@@ -137,17 +138,20 @@ class AlaifGame extends FlameGame {
     if (!rules.isGameOver || !_playing) return;
     _playing = false;
     unawaited(highScores.submit(scoreState.score)); // fire-and-forget by design
+    overlays.remove('controls');
     overlays.add('gameOver');
   }
 
   void pauseGame() {
     if (!_playing || paused) return;
     pauseEngine();
+    overlays.remove('controls');
     overlays.add('paused');
   }
 
   void resumeFromPause() {
     overlays.remove('paused');
+    overlays.add('controls');
     resumeEngine();
   }
 

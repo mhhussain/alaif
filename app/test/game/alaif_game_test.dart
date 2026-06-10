@@ -87,4 +87,41 @@ void main() {
     expect(game.isPlaying, isFalse);
     expect(game.overlays.isActive('gameOver'), isTrue);
   });
+
+  testWithGame<AlaifGame>(
+      'controls overlay is shown while playing and hidden on game over',
+      AlaifGame.new, (game) async {
+    expect(game.overlays.isActive('controls'), isFalse);
+
+    game.startGame();
+    expect(game.overlays.isActive('controls'), isTrue);
+
+    game.rules.onBombSliced();
+    game.rules.onBombSliced();
+    game.rules.onBombSliced();
+    final letter = staticLetter(game)..entered = true;
+    game.add(letter);
+    game.update(0);
+    letter.position.y = game.size.y + 500;
+    game.update(0);
+
+    expect(game.isPlaying, isFalse);
+    expect(game.overlays.isActive('gameOver'), isTrue);
+    expect(game.overlays.isActive('controls'), isFalse);
+  });
+
+  testWithGame<AlaifGame>(
+      'pausing hides controls and resuming restores them',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    expect(game.overlays.isActive('controls'), isTrue);
+
+    game.pauseGame();
+    expect(game.overlays.isActive('paused'), isTrue);
+    expect(game.overlays.isActive('controls'), isFalse);
+
+    game.resumeFromPause();
+    expect(game.overlays.isActive('paused'), isFalse);
+    expect(game.overlays.isActive('controls'), isTrue);
+  });
 }
