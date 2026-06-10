@@ -1,5 +1,8 @@
 # Log
 
+## [2026-06-10] decision | Device review 1 fixes planned
+Device testing (raw/review_1.md) surfaced: not edge-to-edge (SafeArea + white scaffold), overlapping slice SFX (per-drag-update re-slicing before deferred removal), trivial-sliver cuts (fixed horizontal 50% bbox split, swipe angle ignored). Spec [[device-review-1-fixes]]; 10-task plan at plans/2026-06-10-device-review-1-fixes on branch fix/device-review-1. Awaiting user review.
+
 ## [2026-06-10] decision | Ink & Paper M3+M4 plan executed
 All 22 tasks of plans/2026-06-09-ink-and-paper-m3-m4 executed via subagent-driven development on feature/ink-and-paper-m3-m4. 110 tests passing, flutter analyze clean. Each task passed spec + quality review; review fixes: paint/shader hoisting (paper bg, blade, bomb, particles), ui.Image disposal, SafeArea + scroll wrappers on full-screen overlays, ink pause icon. M5 (store prep) next after device testing.
 
