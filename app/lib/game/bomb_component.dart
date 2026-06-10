@@ -41,6 +41,41 @@ class BombComponent extends PositionComponent {
   /// Circular hit approximation using half-width; tall glyphs have a smaller vertical hit extent by design.
   double get hitRadius => size.x / 2;
 
+  // Render-time geometry and paints are constant per bomb (fixed radius,
+  // local coordinates centered at size/2), so build them once and reuse.
+  late final ui.Offset _center = ui.Offset(size.x / 2, size.y / 2);
+  late final double _radius = size.x / 2 - ringStrokeWidth;
+
+  late final ui.Paint _spherePaint = ui.Paint()
+    ..shader = ui.Gradient.radial(
+      _center.translate(-_radius * 0.3, -_radius * 0.35),
+      _radius * 1.6,
+      const [AlaifColors.glyphTop, AlaifColors.ink],
+    );
+
+  late final ui.Paint _ringPaint = ui.Paint()
+    ..color = ringColor
+    ..style = ui.PaintingStyle.stroke
+    ..strokeWidth = ringStrokeWidth;
+
+  late final ui.Paint _fusePaint = ui.Paint()
+    ..color = AlaifColors.ink
+    ..style = ui.PaintingStyle.stroke
+    ..strokeWidth = 2
+    ..strokeCap = ui.StrokeCap.round;
+
+  /// Reused each frame; only the alpha is mutated to animate the flicker.
+  final ui.Paint _sparkPaint = ui.Paint()..color = sparkColor;
+
+  late final ui.Offset _fuseStart = _center.translate(
+    _radius * 0.5,
+    -_radius * 0.75,
+  );
+  late final ui.Offset _fuseEnd = _center.translate(
+    _radius * 0.8,
+    -_radius * 1.15,
+  );
+
   @override
   void update(double dt) {
     _age += dt;
@@ -49,50 +84,21 @@ class BombComponent extends PositionComponent {
 
   @override
   void render(ui.Canvas canvas) {
-    final center = ui.Offset(size.x / 2, size.y / 2);
-    final radius = size.x / 2 - ringStrokeWidth;
-
     // Ink sphere with a faint top-light so it reads as a sphere, not a dot.
-    canvas.drawCircle(
-      center,
-      radius,
-      ui.Paint()
-        ..shader = ui.Gradient.radial(
-          center.translate(-radius * 0.3, -radius * 0.35),
-          radius * 1.6,
-          const [AlaifColors.glyphTop, AlaifColors.ink],
-        ),
-    );
+    canvas.drawCircle(_center, _radius, _spherePaint);
 
     // Seal danger ring.
-    canvas.drawCircle(
-      center,
-      radius,
-      ui.Paint()
-        ..color = ringColor
-        ..style = ui.PaintingStyle.stroke
-        ..strokeWidth = ringStrokeWidth,
-    );
+    canvas.drawCircle(_center, _radius, _ringPaint);
 
     // Short fuse line out the top-right + flickering gold-dust spark.
-    final fuseStart = center.translate(radius * 0.5, -radius * 0.75);
-    final fuseEnd = center.translate(radius * 0.8, -radius * 1.15);
-    canvas.drawLine(
-      fuseStart,
-      fuseEnd,
-      ui.Paint()
-        ..color = AlaifColors.ink
-        ..style = ui.PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..strokeCap = ui.StrokeCap.round,
-    );
+    canvas.drawLine(_fuseStart, _fuseEnd, _fusePaint);
     final flicker = 2.5 + math.sin(_age * 18) * 1.0;
-    canvas.drawCircle(fuseEnd, flicker, ui.Paint()..color = sparkColor);
+    canvas.drawCircle(_fuseEnd, flicker, _sparkPaint);
 
     // Paper "!" cut into the ink.
     _exclaim.paint(
       canvas,
-      center.translate(-_exclaim.width / 2, -_exclaim.height / 2),
+      _center.translate(-_exclaim.width / 2, -_exclaim.height / 2),
     );
   }
 }
