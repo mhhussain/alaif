@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'game/alaif_game.dart';
+import 'ui/alaif_theme.dart';
 import 'ui/controls_overlay.dart';
 import 'ui/game_over_overlay.dart';
 import 'ui/menu_overlay.dart';
@@ -21,6 +22,7 @@ class AlaifApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: buildAlaifTheme(),
       home: Scaffold(
         body: SafeArea(
           child: GameWidget<AlaifGame>.controlled(
