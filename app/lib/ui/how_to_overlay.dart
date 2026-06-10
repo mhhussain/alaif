@@ -13,43 +13,62 @@ class HowToOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AlaifColors.paper,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AlaifSpacing.screenPad,
-        vertical: AlaifSpacing.xl,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(width: 14, height: 14, color: AlaifColors.seal),
-          const SizedBox(height: AlaifSpacing.lg),
-          const Text('How to play', style: AlaifType.heading),
-          const SizedBox(height: AlaifSpacing.xxl),
-          const _HowToRow(
-            painter: _SwipeStrokePainter(),
-            title: 'Swipe to slice',
-            body: 'Drag a quick stroke through a letter to cut it in two.',
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AlaifSpacing.screenPad,
+            vertical: AlaifSpacing.xl,
           ),
-          const SizedBox(height: AlaifSpacing.xl),
-          const _HowToRow(
-            painter: _ComboDotsPainter(),
-            title: 'Chain combos',
-            body: 'Cut three or more in one swipe for bonus gold dust.',
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(width: 14, height: 14, color: AlaifColors.seal),
+                        const SizedBox(height: AlaifSpacing.lg),
+                        const Text('How to play', style: AlaifType.heading),
+                        const SizedBox(height: AlaifSpacing.xxl),
+                        const _HowToRow(
+                          painter: _SwipeStrokePainter(),
+                          title: 'Swipe to slice',
+                          body:
+                              'Drag a quick stroke through a letter to cut it in two.',
+                        ),
+                        const SizedBox(height: AlaifSpacing.xl),
+                        const _HowToRow(
+                          painter: _ComboDotsPainter(),
+                          title: 'Chain combos',
+                          body:
+                              'Cut three or more in one swipe for bonus gold dust.',
+                        ),
+                        const SizedBox(height: AlaifSpacing.xl),
+                        const _HowToRow(
+                          painter: _BombIconPainter(),
+                          title: 'Avoid the bombs',
+                          body: 'Slicing a seal-ringed bomb costs you a life.',
+                        ),
+                        const Spacer(),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: game.closeHowTo,
+                            child: const Text('Got it'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
-          const SizedBox(height: AlaifSpacing.xl),
-          const _HowToRow(
-            painter: _BombIconPainter(),
-            title: 'Avoid the bombs',
-            body: 'Slicing a seal-ringed bomb costs you a life.',
-          ),
-          const Spacer(),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: game.closeHowTo,
-              child: const Text('Got it'),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
