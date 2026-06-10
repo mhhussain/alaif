@@ -69,81 +69,107 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
     final game = widget.game;
     return Container(
       color: AlaifColors.paper,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AlaifSpacing.screenPad,
-        vertical: AlaifSpacing.xl,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text('Settings', style: AlaifType.heading),
-          const SizedBox(height: AlaifSpacing.md),
-          Container(width: 64, height: 2, color: AlaifColors.seal),
-          const SizedBox(height: AlaifSpacing.xl),
-          _row(
-            title: 'Sound effects',
-            subtitle: 'Slices, bombs, and combos',
-            value: _sound,
-            onChanged: (v) {
-              setState(() => _sound = v);
-              game.settings.setSoundEnabled(v);
-              game.audio.enabled = v;
-            },
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AlaifSpacing.screenPad,
+            vertical: AlaifSpacing.xl,
           ),
-          const Divider(),
-          _row(
-            title: 'Music',
-            subtitle: 'Background music',
-            value: _music,
-            onChanged: (v) {
-              setState(() => _music = v);
-              game.settings.setMusicEnabled(v); // stored; no music player yet
-            },
-          ),
-          const Divider(),
-          _row(
-            title: 'Haptics',
-            subtitle: 'Vibration on slice and miss',
-            value: _haptics,
-            onChanged: (v) {
-              setState(() => _haptics = v);
-              game.settings.setHapticsEnabled(v);
-              game.haptics.enabled = v;
-            },
-          ),
-          const SizedBox(height: AlaifSpacing.xl),
-          Container(
-            padding: const EdgeInsets.all(AlaifSpacing.lg),
-            decoration: BoxDecoration(
-              border: Border.all(color: AlaifColors.hairline),
-              borderRadius: BorderRadius.circular(AlaifRadii.sm),
-            ),
-            child: Row(
-              children: [
-                const Text('Best score', style: AlaifType.bodyMuted),
-                const Spacer(),
-                FutureBuilder<int>(
-                  future: game.highScores.read(),
-                  builder: (context, snapshot) => Text(
-                    formatScore(snapshot.data ?? 0),
-                    style: AlaifType.scoreHud.copyWith(fontSize: 24),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text('Settings', style: AlaifType.heading),
+                        const SizedBox(height: AlaifSpacing.md),
+                        Container(
+                          width: 64,
+                          height: 2,
+                          color: AlaifColors.seal,
+                        ),
+                        const SizedBox(height: AlaifSpacing.xl),
+                        _row(
+                          title: 'Sound effects',
+                          subtitle: 'Slices, bombs, and combos',
+                          value: _sound,
+                          onChanged: (v) {
+                            setState(() => _sound = v);
+                            game.settings.setSoundEnabled(v);
+                            game.audio.enabled = v;
+                          },
+                        ),
+                        const Divider(),
+                        _row(
+                          title: 'Music',
+                          subtitle: 'Background music',
+                          value: _music,
+                          onChanged: (v) {
+                            setState(() => _music = v);
+                            game.settings.setMusicEnabled(
+                              v,
+                            ); // stored; no music player yet
+                          },
+                        ),
+                        const Divider(),
+                        _row(
+                          title: 'Haptics',
+                          subtitle: 'Vibration on slice and miss',
+                          value: _haptics,
+                          onChanged: (v) {
+                            setState(() => _haptics = v);
+                            game.settings.setHapticsEnabled(v);
+                            game.haptics.enabled = v;
+                          },
+                        ),
+                        const SizedBox(height: AlaifSpacing.xl),
+                        Container(
+                          padding: const EdgeInsets.all(AlaifSpacing.lg),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AlaifColors.hairline),
+                            borderRadius: BorderRadius.circular(AlaifRadii.sm),
+                          ),
+                          child: Row(
+                            children: [
+                              const Text(
+                                'Best score',
+                                style: AlaifType.bodyMuted,
+                              ),
+                              const Spacer(),
+                              FutureBuilder<int>(
+                                future: game.highScores.read(),
+                                builder: (context, snapshot) => Text(
+                                  formatScore(snapshot.data ?? 0),
+                                  style: AlaifType.scoreHud.copyWith(
+                                    fontSize: 24,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        const Text(
+                          'Alaif · v1.0 · made offline',
+                          style: AlaifType.caption,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AlaifSpacing.lg),
+                        ElevatedButton(
+                          onPressed: game.closeSettings,
+                          child: const Text('Done'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
+              );
+            },
           ),
-          const Spacer(),
-          const Text(
-            'Alaif · v1.0 · made offline',
-            style: AlaifType.caption,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AlaifSpacing.lg),
-          ElevatedButton(
-            onPressed: game.closeSettings,
-            child: const Text('Done'),
-          ),
-        ],
+        ),
       ),
     );
   }
