@@ -242,4 +242,60 @@ void main() {
     expect(audio.events.where((e) => e == 'slice').length, 3);
     expect(audio.events, contains('combo'));
   });
+
+  testWithGame<AlaifGame>('persisted settings flags reach audio and haptics',
+      () {
+    SharedPreferences.setMockInitialValues({
+      'settings.sound': false,
+      'settings.haptics': false,
+    });
+    return AlaifGame();
+  }, (game) async {
+    expect(game.audio.enabled, isFalse);
+    expect(game.haptics.enabled, isFalse);
+  });
+
+  testWithGame<AlaifGame>('how-to opens from the menu and returns to it',
+      AlaifGame.new, (game) async {
+    expect(game.overlays.isActive('menu'), isTrue);
+    game.openHowTo();
+    expect(game.overlays.isActive('howTo'), isTrue);
+    expect(game.overlays.isActive('menu'), isFalse);
+    game.closeHowTo();
+    expect(game.overlays.isActive('menu'), isTrue);
+    expect(game.overlays.isActive('howTo'), isFalse);
+  });
+
+  testWithGame<AlaifGame>('settings remembers where it was opened from',
+      AlaifGame.new, (game) async {
+    game.openSettings(from: 'menu');
+    expect(game.overlays.isActive('settings'), isTrue);
+    expect(game.overlays.isActive('menu'), isFalse);
+    game.closeSettings();
+    expect(game.overlays.isActive('menu'), isTrue);
+
+    game.startGame();
+    game.pauseGame();
+    game.openSettings(from: 'paused');
+    expect(game.overlays.isActive('settings'), isTrue);
+    expect(game.overlays.isActive('paused'), isFalse);
+    game.closeSettings();
+    expect(game.overlays.isActive('paused'), isTrue);
+  });
+
+  testWithGame<AlaifGame>('quitToMenu clears the board and returns to menu',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    game.add(staticLetter(game));
+    game.update(0);
+    game.pauseGame();
+
+    game.quitToMenu();
+    expect(game.paused, isFalse); // engine resumed so the menu animates
+    expect(game.isPlaying, isFalse);
+    expect(game.children.whereType<LetterComponent>(), isEmpty);
+    expect(game.overlays.isActive('menu'), isTrue);
+    expect(game.overlays.isActive('paused'), isFalse);
+    expect(game.overlays.isActive('controls'), isFalse);
+  });
 }

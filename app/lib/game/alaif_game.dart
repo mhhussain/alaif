@@ -13,6 +13,7 @@ import '../core/score_state.dart';
 import '../services/audio_service.dart';
 import '../services/haptics_service.dart';
 import '../services/high_score_store.dart';
+import '../services/settings.dart';
 import '../ui/design_tokens.dart';
 import 'bomb_component.dart';
 import 'combo_callout.dart';
@@ -29,10 +30,12 @@ class AlaifGame extends FlameGame {
     HighScoreStore? highScores,
     AudioService? audio,
     HapticsService? haptics,
+    SettingsStore? settings,
     Random? random,
   })  : highScores = highScores ?? HighScoreStore(),
         audio = audio ?? AudioService(),
         haptics = haptics ?? HapticsService(),
+        settings = settings ?? SettingsStore(),
         _random = random ?? Random();
 
   final GlyphAtlas atlas = GlyphAtlas();
@@ -41,6 +44,8 @@ class AlaifGame extends FlameGame {
   final HighScoreStore highScores;
   final AudioService audio;
   final HapticsService haptics;
+  final SettingsStore settings;
+  String _settingsReturnOverlay = 'menu';
   final Random _random;
   Vector2? _lastSlicePosition;
 
@@ -55,11 +60,20 @@ class AlaifGame extends FlameGame {
   @override
   Future<void> onLoad() async {
     await atlas.load();
+    audio.enabled = await settings.soundEnabled();
+    haptics.enabled = await settings.hapticsEnabled();
     unawaited(audio.preload()); // fire-and-forget; failures are silent
     await add(PaperBackground());
     // Register fallback builders so overlays.add/isActive work in test
     // environments where no GameWidget overlay entries are provided.
-    for (final name in const ['menu', 'gameOver', 'paused', 'controls']) {
+    for (final name in const [
+      'menu',
+      'gameOver',
+      'paused',
+      'controls',
+      'howTo',
+      'settings',
+    ]) {
       if (!overlays.registeredOverlays.contains(name)) {
         overlays.addEntry(name, (_, _) => const SizedBox.shrink());
       }
@@ -197,6 +211,47 @@ class AlaifGame extends FlameGame {
     overlays.remove('paused');
     overlays.add('controls');
     resumeEngine();
+  }
+
+  void openHowTo() {
+    overlays.remove('menu');
+    overlays.add('howTo');
+  }
+
+  void closeHowTo() {
+    overlays.remove('howTo');
+    overlays.add('menu');
+  }
+
+  /// [from] is the overlay to return to on [closeSettings]: 'menu' or 'paused'.
+  void openSettings({required String from}) {
+    _settingsReturnOverlay = from;
+    overlays.remove(from);
+    overlays.add('settings');
+  }
+
+  void closeSettings() {
+    overlays.remove('settings');
+    overlays.add(_settingsReturnOverlay);
+  }
+
+  /// Abandon the current run (from pause or game over) and show the menu.
+  void quitToMenu() {
+    _playing = false;
+    if (paused) resumeEngine();
+    children
+        .where((c) =>
+            c is LetterComponent ||
+            c is BombComponent ||
+            c is SlicedHalf ||
+            c is Spawner)
+        .toList()
+        .forEach((c) => c.removeFromParent());
+    update(0);
+    overlays.remove('paused');
+    overlays.remove('gameOver');
+    overlays.remove('controls');
+    overlays.add('menu');
   }
 
   @override
