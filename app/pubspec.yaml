@@ -50,8 +50,14 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flame_test: ^2.2.2
 
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
+  flutter_launcher_icons: ^0.14.4
+
+# The following section is specific to Flutter icon generation.
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon/icon-1024.png"
+  min_sdk_android: 21
 
 # The following section is specific to Flutter packages.
 flutter:
