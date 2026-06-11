@@ -47,11 +47,18 @@ class RecordingAudio extends AudioService {
   @override
   void playMiss() => events.add('miss');
   @override
-  Future<void> playBackgroundMusic() async => events.add('bgm-play');
+  Future<void> playBackgroundMusic() async {
+    if (!musicEnabled) return;
+    events.add('bgm-play');
+  }
+
   @override
   void pauseBackgroundMusic() => events.add('bgm-pause');
   @override
-  void resumeBackgroundMusic() => events.add('bgm-resume');
+  void resumeBackgroundMusic() {
+    if (!musicEnabled) return;
+    events.add('bgm-resume');
+  }
 }
 
 void main() {
@@ -391,6 +398,40 @@ void main() {
     expect(audio.events, contains('bgm-pause'));
   });
 
+  testWithGame<AlaifGame>(
+      'returning to a foregrounded menu resumes background music',
+      () => AlaifGame(audio: RecordingAudio()), (game) async {
+    final audio = game.audio as RecordingAudio;
+    audio.events.clear();
+
+    game.lifecycleStateChange(AppLifecycleState.resumed);
+
+    expect(audio.events, contains('bgm-resume'));
+  });
+
+  testWithGame<AlaifGame>(
+      'returning to a foregrounded paused game does not resume music',
+      () => AlaifGame(audio: RecordingAudio()), (game) async {
+    final audio = game.audio as RecordingAudio;
+    game.startGame();
+    game.pauseGame();
+    audio.events.clear();
+
+    game.lifecycleStateChange(AppLifecycleState.resumed);
+
+    expect(audio.events, isNot(contains('bgm-resume')));
+  });
+
+  testWithGame<AlaifGame>('background music is skipped when music is disabled',
+      () {
+    SharedPreferences.setMockInitialValues({'settings.music': false});
+    return AlaifGame(audio: RecordingAudio());
+  }, (game) async {
+    final audio = game.audio as RecordingAudio;
+    expect(audio.musicEnabled, isFalse);
+    expect(audio.events, isNot(contains('bgm-play')));
+  });
+
   testWithGame<AlaifGame>('slicing a letter throws an ink burst',
       AlaifGame.new, (game) async {
     game.startGame();
@@ -491,6 +532,13 @@ void main() {
   }, (game) async {
     expect(game.audio.enabled, isFalse);
     expect(game.haptics.enabled, isFalse);
+  });
+
+  testWithGame<AlaifGame>('persisted music setting reaches audio', () {
+    SharedPreferences.setMockInitialValues({'settings.music': false});
+    return AlaifGame();
+  }, (game) async {
+    expect(game.audio.musicEnabled, isFalse);
   });
 
   testWithGame<AlaifGame>('how-to opens from the menu and returns to it',

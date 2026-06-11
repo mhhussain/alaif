@@ -72,6 +72,7 @@ class AlaifGame extends FlameGame {
   Future<void> onLoad() async {
     await atlas.load();
     audio.enabled = await settings.soundEnabled();
+    audio.musicEnabled = await settings.musicEnabled();
     haptics.enabled = await settings.hapticsEnabled();
     unawaited(audio.preload()); // fire-and-forget; failures are silent
     unawaited(audio.playBackgroundMusic()); // fire-and-forget; failures are silent
@@ -323,6 +324,8 @@ class AlaifGame extends FlameGame {
     if (state != AppLifecycleState.resumed) {
       pauseGame();
       audio.pauseBackgroundMusic();
+    } else if (!overlays.isActive('paused')) {
+      audio.resumeBackgroundMusic();
     }
   }
 }

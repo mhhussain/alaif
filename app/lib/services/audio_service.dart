@@ -12,6 +12,8 @@ class AudioService {
   AudioService({DateTime Function()? now}) : _now = now ?? DateTime.now;
 
   bool enabled = true;
+  bool musicEnabled = true;
+  bool _bgmStarted = false;
 
   static const sliceSfx = 'slice.mp3'; // real, bundled
   static const bombSfx = 'bomb.mp3'; // stub — may be missing
@@ -72,7 +74,8 @@ class AudioService {
   /// Starts the looping background music track. Safe to call repeatedly;
   /// failures (missing file, no audio backend in tests) are silent.
   Future<void> playBackgroundMusic() async {
-    if (!enabled) return;
+    if (!musicEnabled || _bgmStarted) return;
+    _bgmStarted = true;
     await playBackgroundMusicInternal();
   }
 
@@ -97,7 +100,7 @@ class AudioService {
   }
 
   void resumeBackgroundMusic() {
-    if (!enabled) return;
+    if (!musicEnabled) return;
     resumeBackgroundMusicInternal();
   }
 
@@ -106,6 +109,32 @@ class AudioService {
       FlameAudio.bgm.resume();
     } catch (_) {
       // No audio backend: non-fatal.
+    }
+  }
+
+  /// Stops the background music and resets the double-start guard so a
+  /// subsequent [playBackgroundMusic] call will start it again.
+  void stopBackgroundMusic() {
+    _bgmStarted = false;
+    stopBackgroundMusicInternal();
+  }
+
+  void stopBackgroundMusicInternal() {
+    try {
+      FlameAudio.bgm.stop();
+    } catch (_) {
+      // No audio backend: non-fatal.
+    }
+  }
+
+  /// Toggles background music on/off at runtime, starting or stopping
+  /// playback immediately.
+  Future<void> setMusicEnabled(bool value) async {
+    musicEnabled = value;
+    if (value) {
+      await playBackgroundMusic();
+    } else {
+      stopBackgroundMusic();
     }
   }
 }

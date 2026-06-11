@@ -102,10 +102,12 @@ void main() {
     expect(calls, ['play', 'pause', 'resume']);
   });
 
-  test('disabled service skips playBackgroundMusic and resumeBackgroundMusic',
+  test(
+      'musicEnabled = false skips playBackgroundMusic and resumeBackgroundMusic',
       () async {
     final calls = <String>[];
-    final service = BgmRecordingAudioService(calls: calls)..enabled = false;
+    final service = BgmRecordingAudioService(calls: calls)
+      ..musicEnabled = false;
 
     await service.playBackgroundMusic();
     service.resumeBackgroundMusic();
@@ -113,13 +115,42 @@ void main() {
     expect(calls, isEmpty);
   });
 
-  test('pauseBackgroundMusic runs even when the service is disabled', () {
+  test('pauseBackgroundMusic runs even when music is disabled', () {
     final calls = <String>[];
-    final service = BgmRecordingAudioService(calls: calls)..enabled = false;
+    final service = BgmRecordingAudioService(calls: calls)
+      ..musicEnabled = false;
 
     service.pauseBackgroundMusic();
 
     expect(calls, ['pause']);
+  });
+
+  test('a second playBackgroundMusic call is a no-op (no layered tracks)',
+      () async {
+    final calls = <String>[];
+    final service = BgmRecordingAudioService(calls: calls);
+
+    await service.playBackgroundMusic();
+    await service.playBackgroundMusic();
+
+    expect(calls, ['play']);
+  });
+
+  test('setMusicEnabled(false) stops music; setMusicEnabled(true) plays it again',
+      () async {
+    final calls = <String>[];
+    final service = BgmRecordingAudioService(calls: calls);
+
+    await service.playBackgroundMusic();
+    expect(calls, ['play']);
+
+    await service.setMusicEnabled(false);
+    expect(calls, ['play', 'stop']);
+    expect(service.musicEnabled, isFalse);
+
+    await service.setMusicEnabled(true);
+    expect(calls, ['play', 'stop', 'play']);
+    expect(service.musicEnabled, isTrue);
   });
 }
 
@@ -150,4 +181,7 @@ class BgmRecordingAudioService extends AudioService {
 
   @override
   void resumeBackgroundMusicInternal() => calls.add('resume');
+
+  @override
+  void stopBackgroundMusicInternal() => calls.add('stop');
 }

@@ -24,19 +24,9 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
   @override
   void initState() {
     super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final sound = await widget.game.settings.soundEnabled();
-    final music = await widget.game.settings.musicEnabled();
-    final haptics = await widget.game.settings.hapticsEnabled();
-    if (!mounted) return;
-    setState(() {
-      _sound = sound;
-      _music = music;
-      _haptics = haptics;
-    });
+    _sound = widget.game.audio.enabled;
+    _music = widget.game.audio.musicEnabled;
+    _haptics = widget.game.haptics.enabled;
   }
 
   Widget _row({
@@ -109,9 +99,8 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
                           value: _music,
                           onChanged: (v) {
                             setState(() => _music = v);
-                            game.settings.setMusicEnabled(
-                              v,
-                            ); // stored; no music player yet
+                            game.settings.setMusicEnabled(v);
+                            game.audio.setMusicEnabled(v);
                           },
                         ),
                         const Divider(),
