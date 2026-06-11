@@ -11,6 +11,8 @@ import 'package:alaif/services/haptics_service.dart';
 import 'package:alaif/ui/design_tokens.dart';
 import 'package:flame/components.dart';
 import 'package:flame_test/flame_test.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -44,10 +46,32 @@ class RecordingAudio extends AudioService {
   void playCombo() => events.add('combo');
   @override
   void playMiss() => events.add('miss');
+  @override
+  Future<void> playBackgroundMusic() async => events.add('bgm-play');
+  @override
+  void pauseBackgroundMusic() => events.add('bgm-pause');
+  @override
+  void resumeBackgroundMusic() => events.add('bgm-resume');
 }
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
+
+  // flame_audio's Bgm constructs an AudioPlayer, which fires an async
+  // platform-channel call to initialize the global audioplayers plugin.
+  // With no plugin registered in tests this throws a MissingPluginException
+  // on an unrelated async gap. Stub both audioplayers channels so
+  // AudioService's background-music calls (now wired into AlaifGame) never
+  // throw when the default AudioService is used.
+  for (final channel in const [
+    'xyz.luan/audioplayers',
+    'xyz.luan/audioplayers.global',
+  ]) {
+    binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      MethodChannel(channel),
+      (call) async => null,
+    );
+  }
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -321,6 +345,36 @@ void main() {
     game.resumeFromPause();
     expect(game.overlays.isActive('paused'), isFalse);
     expect(game.overlays.isActive('controls'), isTrue);
+  });
+
+  testWithGame<AlaifGame>('background music starts on load',
+      () => AlaifGame(audio: RecordingAudio()), (game) async {
+    final audio = game.audio as RecordingAudio;
+    expect(audio.events, contains('bgm-play'));
+  });
+
+  testWithGame<AlaifGame>(
+      'pausing and resuming the game pauses/resumes background music',
+      () => AlaifGame(audio: RecordingAudio()), (game) async {
+    final audio = game.audio as RecordingAudio;
+    game.startGame();
+    audio.events.clear();
+
+    game.pauseGame();
+    expect(audio.events, contains('bgm-pause'));
+
+    game.resumeFromPause();
+    expect(audio.events, contains('bgm-resume'));
+  });
+
+  testWithGame<AlaifGame>('backgrounding the app pauses background music',
+      () => AlaifGame(audio: RecordingAudio()), (game) async {
+    final audio = game.audio as RecordingAudio;
+    audio.events.clear();
+
+    game.lifecycleStateChange(AppLifecycleState.paused);
+
+    expect(audio.events, contains('bgm-pause'));
   });
 
   testWithGame<AlaifGame>('slicing a letter throws an ink burst',
