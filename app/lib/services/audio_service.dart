@@ -17,6 +17,8 @@ class AudioService {
   static const bombSfx = 'bomb.mp3'; // stub — may be missing
   static const comboSfx = 'combo.mp3'; // stub — may be missing
   static const missSfx = 'miss.mp3'; // stub — may be missing
+  static const backgroundMusic = 'background.mp3';
+  static const musicVolume = 0.5;
 
   /// Minimum gap between two `playSlice()` calls that actually play. Guards
   /// against overlapping audio if a single swipe slices the same letter (or
@@ -66,4 +68,44 @@ class AudioService {
   void playBomb() => _play(bombSfx);
   void playCombo() => _play(comboSfx);
   void playMiss() => _play(missSfx);
+
+  /// Starts the looping background music track. Safe to call repeatedly;
+  /// failures (missing file, no audio backend in tests) are silent.
+  Future<void> playBackgroundMusic() async {
+    if (!enabled) return;
+    await playBackgroundMusicInternal();
+  }
+
+  /// Performs the actual bgm playback. Split out so tests can override it
+  /// without touching FlameAudio (which has no backend in test environments).
+  Future<void> playBackgroundMusicInternal() async {
+    try {
+      await FlameAudio.bgm.play(backgroundMusic, volume: musicVolume);
+    } catch (_) {
+      // Missing file or no audio backend: non-fatal.
+    }
+  }
+
+  void pauseBackgroundMusic() => pauseBackgroundMusicInternal();
+
+  void pauseBackgroundMusicInternal() {
+    try {
+      FlameAudio.bgm.pause();
+    } catch (_) {
+      // No audio backend: non-fatal.
+    }
+  }
+
+  void resumeBackgroundMusic() {
+    if (!enabled) return;
+    resumeBackgroundMusicInternal();
+  }
+
+  void resumeBackgroundMusicInternal() {
+    try {
+      FlameAudio.bgm.resume();
+    } catch (_) {
+      // No audio backend: non-fatal.
+    }
+  }
 }
