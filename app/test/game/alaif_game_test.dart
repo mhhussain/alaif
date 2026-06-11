@@ -72,6 +72,24 @@ void main() {
     expect(game.children.whereType<SlicedHalf>().length, 2);
   });
 
+  testWithGame<AlaifGame>(
+      'a letter already sliced this frame is not sliced again by a later segment',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    final letter = staticLetter(game);
+    game.add(letter);
+    game.update(0); // mount
+
+    // Two swipe segments both cross the same letter before removal is
+    // processed (Flame defers removeFromParent to the next update tick).
+    game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.update(0); // process removal/additions
+
+    expect(game.scoreState.score, ScoreState.pointsPerLetter);
+    expect(game.children.whereType<SlicedHalf>().length, 2);
+  });
+
   testWithGame<AlaifGame>('slicing a bomb costs a life', AlaifGame.new,
       (game) async {
     game.startGame();

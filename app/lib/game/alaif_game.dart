@@ -110,6 +110,7 @@ class AlaifGame extends FlameGame {
   void trySlice(Vector2 from, Vector2 to) {
     if (!_playing) return;
     for (final letter in children.whereType<LetterComponent>().toList()) {
+      if (letter.sliced) continue;
       if (segmentHitsCircle(from, to, letter.position, letter.hitRadius)) {
         _sliceLetter(letter);
       }
@@ -140,6 +141,7 @@ class AlaifGame extends FlameGame {
   }
 
   void _sliceLetter(LetterComponent letter) {
+    letter.sliced = true;
     scoreState.registerHit();
     haptics.onSlice();
     audio.playSlice();
