@@ -56,6 +56,10 @@ class AlaifGame extends FlameGame {
   final Random _random;
   Vector2? _lastSlicePosition;
 
+  /// Remaining real-time milliseconds of the current hit-stop. While > 0,
+  /// [update] scales the simulation `dt` by [AlaifMotion.hitStopScale].
+  double _hitStopRemainingMs = 0;
+
   bool _playing = false;
   bool get isPlaying => _playing;
 
@@ -155,6 +159,7 @@ class AlaifGame extends FlameGame {
     scoreState.registerHit();
     haptics.onSlice();
     audio.playSlice();
+    _hitStopRemainingMs = AlaifMotion.hitStopMs.toDouble();
     letter.removeFromParent();
     _lastSlicePosition = letter.position.clone();
     add(InkBurstComponent(
@@ -234,6 +239,15 @@ class AlaifGame extends FlameGame {
           bomb.removeFromParent(); // missing a bomb is free
         }
       }
+    }
+
+    // Hit-stop: a brief slowdown of the simulation on a successful slice, for
+    // impact. The countdown itself uses the real (unscaled) dt so it always
+    // recovers, even at very low frame rates.
+    if (_hitStopRemainingMs > 0) {
+      _hitStopRemainingMs -= dt * 1000;
+      super.update(dt * AlaifMotion.hitStopScale);
+      return;
     }
     super.update(dt);
   }

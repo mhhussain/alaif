@@ -212,6 +212,10 @@ abstract class AlaifMotion {
   static const cutSeparationSwipeScale = 1.5; // extra px/s per px of swipe segment
   static const cutSeparationMaxSpeed = 900.0; // px/s, ceiling (fast swipes)
 
+  // Hit-stop — brief simulation slowdown on a successful slice, for impact.
+  static const hitStopMs = 50; // real-time duration of the slowdown
+  static const hitStopScale = 0.05; // dt multiplier while hit-stop is active
+
   // Combo — gold dust burst on 3+ in one swipe.
   static const comboDustParticles = 18;
   static const comboFlashMs = 600; // combo callout fade

@@ -200,6 +200,48 @@ void main() {
     );
   });
 
+  testWithGame<AlaifGame>(
+      'slicing a letter triggers a brief hit-stop that scales down dt for the simulation',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    final letter = staticLetter(game, x: 100, y: 300);
+    game.add(letter);
+    game.update(0); // mount
+
+    game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.update(0); // process slice
+
+    final half = game.children.whereType<SlicedHalf>().first;
+    final yBefore = half.position.y;
+
+    // During hit-stop, a real-time-sized dt should barely move the half.
+    final hitStopDt = AlaifMotion.hitStopMs / 1000;
+    game.update(hitStopDt);
+    final yDuringHitStop = half.position.y;
+    expect(yDuringHitStop - yBefore, lessThan(1.0));
+
+    // After the hit-stop window elapses, the same dt advances normally.
+    game.update(hitStopDt);
+    final yAfterHitStop = half.position.y;
+    expect(yAfterHitStop - yDuringHitStop, greaterThan(1.0));
+  });
+
+  testWithGame<AlaifGame>('hit-stop does not affect the game when no slice has occurred',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    final letter = LetterComponent(
+      letter: 'ب',
+      image: game.atlas.imageFor('ب'),
+      motion: ArcMotion(start: Vector2(100, 300), velocity: Vector2(0, 100), gravity: 0),
+    );
+    game.add(letter);
+    game.update(0); // mount
+
+    final yBefore = letter.position.y;
+    game.update(0.1);
+    expect(letter.position.y - yBefore, closeTo(10, 1e-9)); // unscaled dt
+  });
+
   testWithGame<AlaifGame>('slicing a bomb costs a life', AlaifGame.new,
       (game) async {
     game.startGame();
