@@ -14,7 +14,7 @@ class ControlsOverlay extends StatelessWidget {
       alignment: Alignment.topRight,
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.only(top: 40.0, right: 8.0),
           child: IconButton(
             icon: const Icon(Icons.pause, color: AlaifColors.inkMuted, size: 32),
             onPressed: game.pauseGame,
