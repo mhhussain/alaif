@@ -9,12 +9,22 @@ import 'package:flame_audio/flame_audio.dart';
 /// have no audio backend, and a lost sound must never crash gameplay.
 /// [enabled] is driven by the persisted settings.
 class AudioService {
+  AudioService({DateTime Function()? now}) : _now = now ?? DateTime.now;
+
   bool enabled = true;
 
   static const sliceSfx = 'slice.mp3'; // real, bundled
   static const bombSfx = 'bomb.mp3'; // stub — may be missing
   static const comboSfx = 'combo.mp3'; // stub — may be missing
   static const missSfx = 'miss.mp3'; // stub — may be missing
+
+  /// Minimum gap between two `playSlice()` calls that actually play. Guards
+  /// against overlapping audio if a single swipe slices the same letter (or
+  /// produces multiple slice events) within one frame/gesture-tick.
+  static const sliceCooldown = Duration(milliseconds: 60);
+
+  final DateTime Function() _now;
+  DateTime? _lastSliceAt;
 
   /// Warm the cache. flame_audio resolves names under assets/audio/.
   Future<void> preload() async {
@@ -29,6 +39,12 @@ class AudioService {
 
   void _play(String sfx) {
     if (!enabled) return;
+    playInternal(sfx);
+  }
+
+  /// Performs the actual playback. Split out so tests can override it
+  /// without touching FlameAudio (which has no backend in test environments).
+  void playInternal(String sfx) {
     try {
       unawaited(
         FlameAudio.play(sfx).then<void>((_) {}).catchError((_) {}),
@@ -38,7 +54,15 @@ class AudioService {
     }
   }
 
-  void playSlice() => _play(sliceSfx);
+  void playSlice() {
+    if (!enabled) return;
+    final now = _now();
+    final last = _lastSliceAt;
+    if (last != null && now.difference(last) < sliceCooldown) return;
+    _lastSliceAt = now;
+    playInternal(sliceSfx);
+  }
+
   void playBomb() => _play(bombSfx);
   void playCombo() => _play(comboSfx);
   void playMiss() => _play(missSfx);
