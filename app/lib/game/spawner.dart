@@ -55,6 +55,7 @@ class Spawner extends Component with HasGameReference<AlaifGame> {
         image: game.atlas.imageFor(letter),
         motion: motion,
         targetSize: targetSize,
+        random: _random,
       ));
     }
   }

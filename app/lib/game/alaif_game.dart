@@ -3,7 +3,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flame/game.dart';
-import 'package:flutter/widgets.dart' show AppLifecycleState, SizedBox;
+import 'package:flutter/widgets.dart' show AppLifecycleState, EdgeInsets, SizedBox;
 
 import '../core/game_rules.dart';
 import '../core/glyph_atlas.dart';
@@ -39,6 +39,13 @@ class AlaifGame extends FlameGame {
         _random = random ?? Random();
 
   final GlyphAtlas atlas = GlyphAtlas();
+
+  /// Device safe-area insets (notch/status bar/gesture nav), set from
+  /// `MediaQuery` by the widget that builds the `GameWidget`. Used by [Hud]
+  /// to keep score/lives clear of screen cutouts now that the game canvas
+  /// paints edge-to-edge (no `SafeArea` ancestor).
+  EdgeInsets safePadding = EdgeInsets.zero;
+
   final ScoreState scoreState = ScoreState();
   final GameRules rules = GameRules();
   final HighScoreStore highScores;
@@ -48,6 +55,10 @@ class AlaifGame extends FlameGame {
   String _settingsReturnOverlay = 'menu';
   final Random _random;
   Vector2? _lastSlicePosition;
+
+  /// Remaining real-time milliseconds of the current hit-stop. While > 0,
+  /// [update] scales the simulation `dt` by [AlaifMotion.hitStopScale].
+  double _hitStopRemainingMs = 0;
 
   bool _playing = false;
   bool get isPlaying => _playing;
@@ -110,8 +121,9 @@ class AlaifGame extends FlameGame {
   void trySlice(Vector2 from, Vector2 to) {
     if (!_playing) return;
     for (final letter in children.whereType<LetterComponent>().toList()) {
+      if (letter.sliced) continue;
       if (segmentHitsCircle(from, to, letter.position, letter.hitRadius)) {
-        _sliceLetter(letter);
+        _sliceLetter(letter, from, to);
       }
     }
     for (final bomb in children.whereType<BombComponent>().toList()) {
@@ -139,31 +151,70 @@ class AlaifGame extends FlameGame {
     audio.playCombo();
   }
 
-  void _sliceLetter(LetterComponent letter) {
+  /// Shared upward "pop" velocity (px/s) added to both halves' separation.
+  static final Vector2 _halfPopVelocity = Vector2(0, -100);
+
+  void _sliceLetter(LetterComponent letter, Vector2 swipeFrom, Vector2 swipeTo) {
+    letter.sliced = true;
     scoreState.registerHit();
     haptics.onSlice();
     audio.playSlice();
+    _hitStopRemainingMs = AlaifMotion.hitStopMs.toDouble();
     letter.removeFromParent();
     _lastSlicePosition = letter.position.clone();
     add(InkBurstComponent(
       particles: spawnCutBurst(letter.position, _random),
     ));
+
+    // Cut direction follows the swipe in WORLD space; degenerate
+    // (zero-length) segments fall back to a horizontal cut. The cut always
+    // passes through the card's center (the component's local center,
+    // size / 2).
+    final swipeVector = swipeTo - swipeFrom;
+    final worldCutDirection = swipeVector.length2 > 0
+        ? (swipeVector.clone()..normalize())
+        : Vector2(1, 0);
+    final cutCenter = letter.size / 2;
+
+    // SlicedHalf clips in the letter's local (unrotated) frame, so rotate the
+    // world-space cut direction by -letter.angle to get the direction in that
+    // frame. This keeps the baked clip line aligned with the swipe as drawn,
+    // even though the letter (and thus its halves) may be tilted.
+    final letterAngle = letter.angle;
+    final localCutDirection = rotateVector(worldCutDirection, -letterAngle);
+
+    // Halves separate perpendicular to the cut line, with an impulse scaled
+    // by the swipe segment's length (a proxy for swipe speed), clamped, plus
+    // a shared upward pop. This separation is computed in WORLD space so the
+    // halves fly apart relative to the actual swipe regardless of the
+    // letter's rotation.
+    final worldPerp = Vector2(-worldCutDirection.y, worldCutDirection.x);
+    final separationSpeed = (AlaifMotion.cutSeparationBaseSpeed +
+            swipeVector.length * AlaifMotion.cutSeparationSwipeScale)
+        .clamp(AlaifMotion.cutSeparationBaseSpeed, AlaifMotion.cutSeparationMaxSpeed);
+
     final cutoff = size.y + 200;
     add(SlicedHalf(
       image: letter.image,
       startPosition: letter.position,
-      velocity: Vector2(-120, -150),
+      velocity: worldPerp * separationSpeed + _halfPopVelocity,
       topHalf: true,
       removeBelowY: cutoff,
       displaySize: letter.size.clone(),
+      cutCenter: cutCenter,
+      cutDirection: localCutDirection,
+      angle: letterAngle,
     ));
     add(SlicedHalf(
       image: letter.image,
       startPosition: letter.position,
-      velocity: Vector2(120, -100),
+      velocity: -worldPerp * separationSpeed + _halfPopVelocity,
       topHalf: false,
       removeBelowY: cutoff,
       displaySize: letter.size.clone(),
+      cutCenter: cutCenter,
+      cutDirection: localCutDirection,
+      angle: letterAngle,
     ));
   }
 
@@ -188,6 +239,15 @@ class AlaifGame extends FlameGame {
           bomb.removeFromParent(); // missing a bomb is free
         }
       }
+    }
+
+    // Hit-stop: a brief slowdown of the simulation on a successful slice, for
+    // impact. The countdown itself uses the real (unscaled) dt so it always
+    // recovers, even at very low frame rates.
+    if (_hitStopRemainingMs > 0) {
+      _hitStopRemainingMs -= dt * 1000;
+      super.update(dt * AlaifMotion.hitStopScale);
+      return;
     }
     super.update(dt);
   }
@@ -258,4 +318,16 @@ class AlaifGame extends FlameGame {
     super.lifecycleStateChange(state);
     if (state != AppLifecycleState.resumed) pauseGame();
   }
+}
+
+/// Rotates [v] by [angle] radians using Flame's rotation convention (positive
+/// angle is clockwise in screen space, matching [PositionComponent.angle] /
+/// `Matrix4.rotateZ`). Returns a new vector; [v] is not mutated.
+Vector2 rotateVector(Vector2 v, double angle) {
+  final cosA = cos(angle);
+  final sinA = sin(angle);
+  return Vector2(
+    cosA * v.x - sinA * v.y,
+    sinA * v.x + cosA * v.y,
+  );
 }

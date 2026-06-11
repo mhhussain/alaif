@@ -8,6 +8,7 @@ import 'package:alaif/game/letter_component.dart';
 import 'package:alaif/game/sliced_halves.dart';
 import 'package:alaif/services/audio_service.dart';
 import 'package:alaif/services/haptics_service.dart';
+import 'package:alaif/ui/design_tokens.dart';
 import 'package:flame/components.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -70,6 +71,175 @@ void main() {
     expect(game.scoreState.score, ScoreState.pointsPerLetter);
     expect(game.children.whereType<LetterComponent>(), isEmpty);
     expect(game.children.whereType<SlicedHalf>().length, 2);
+  });
+
+  testWithGame<AlaifGame>(
+      'a letter already sliced this frame is not sliced again by a later segment',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    final letter = staticLetter(game);
+    game.add(letter);
+    game.update(0); // mount
+
+    // Two swipe segments both cross the same letter before removal is
+    // processed (Flame defers removeFromParent to the next update tick).
+    game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.update(0); // process removal/additions
+
+    expect(game.scoreState.score, ScoreState.pointsPerLetter);
+    expect(game.children.whereType<SlicedHalf>().length, 2);
+  });
+
+  testWithGame<AlaifGame>(
+      'a vertical swipe produces sliced halves whose cut direction matches the swipe',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    final letter = staticLetter(game);
+    game.add(letter);
+    game.update(0); // mount
+
+    // Vertical swipe (top to bottom) through the letter's position.
+    game.trySlice(Vector2(100, 200), Vector2(100, 400));
+    game.update(0);
+
+    final halves = game.children.whereType<SlicedHalf>().toList();
+    expect(halves.length, 2);
+    for (final half in halves) {
+      // cutDirection should be (close to) vertical: |y| component dominates.
+      expect(half.cutDirection.x.abs(), lessThan(half.cutDirection.y.abs()));
+      // Cut passes through the letter's center.
+      expect(half.cutCenter, letter.size / 2);
+    }
+    // The two halves must separate from each other (different velocities).
+    expect(halves[0].velocity, isNot(equals(halves[1].velocity)));
+  });
+
+  testWithGame<AlaifGame>(
+      'slicing a rotated letter bakes the cut and halves at the letter\'s angle',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    final letter = staticLetter(game);
+    game.add(letter);
+    game.update(0); // mount
+
+    // Give the letter a known non-zero rotation, as if it had spawned with a
+    // toss and/or tumbled mid-flight.
+    const letterAngle = 0.3;
+    letter.angle = letterAngle;
+
+    final swipeFrom = Vector2(100, 200);
+    final swipeTo = Vector2(100, 400);
+    game.trySlice(swipeFrom, swipeTo);
+    game.update(0); // process removal/additions
+
+    final halves = game.children.whereType<SlicedHalf>().toList();
+    expect(halves.length, 2);
+
+    final worldDirection = (swipeTo - swipeFrom).normalized();
+    final expectedLocalDirection = rotateVector(worldDirection, -letterAngle);
+
+    for (final half in halves) {
+      expect(half.angle, closeTo(letterAngle, 1e-9));
+      expect(half.cutDirection.x, closeTo(expectedLocalDirection.x, 1e-9));
+      expect(half.cutDirection.y, closeTo(expectedLocalDirection.y, 1e-9));
+    }
+  });
+
+  testWithGame<AlaifGame>(
+      'a degenerate (zero-length) swipe segment falls back to a horizontal cut',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    final letter = staticLetter(game);
+    game.add(letter);
+    game.update(0);
+
+    // from == to: zero-length segment, but it still must hit (radius covers point).
+    game.trySlice(Vector2(100, 300), Vector2(100, 300));
+    game.update(0);
+
+    final halves = game.children.whereType<SlicedHalf>().toList();
+    expect(halves.length, 2);
+    for (final half in halves) {
+      expect(half.cutDirection, Vector2(1, 0));
+    }
+  });
+
+  testWithGame<AlaifGame>(
+      'a fast swipe produces a larger half-separation impulse than a slow one',
+      AlaifGame.new, (game) async {
+    game.startGame();
+
+    final slowLetter = staticLetter(game, x: 100, y: 300);
+    game.add(slowLetter);
+    game.update(0);
+    game.trySlice(Vector2(99, 300), Vector2(101, 300)); // tiny 2px segment
+    game.update(0);
+    final slowHalves = game.children.whereType<SlicedHalf>().toList();
+    final slowSpeed = slowHalves.first.velocity.length;
+
+    game.startGame(); // clears halves and resets state
+
+    final fastLetter = staticLetter(game, x: 100, y: 300);
+    game.add(fastLetter);
+    game.update(0);
+    game.trySlice(Vector2(0, 300), Vector2(800, 300)); // large fast segment
+    game.update(0);
+    final fastHalves = game.children.whereType<SlicedHalf>().toList();
+    final fastSpeed = fastHalves.first.velocity.length;
+
+    expect(fastSpeed, greaterThan(slowSpeed));
+    // Even the fast swipe is clamped.
+    // velocity = perp * separationSpeed + popVelocity (0, -100), so its
+    // magnitude is bounded by the clamped separation speed plus the pop
+    // velocity's length.
+    const popVelocityLength = 100.0; // matches AlaifGame's _halfPopVelocity
+    expect(
+      fastSpeed,
+      lessThanOrEqualTo(AlaifMotion.cutSeparationMaxSpeed + popVelocityLength),
+    );
+  });
+
+  testWithGame<AlaifGame>(
+      'slicing a letter triggers a brief hit-stop that scales down dt for the simulation',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    final letter = staticLetter(game, x: 100, y: 300);
+    game.add(letter);
+    game.update(0); // mount
+
+    game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.update(0); // process slice
+
+    final half = game.children.whereType<SlicedHalf>().first;
+    final yBefore = half.position.y;
+
+    // During hit-stop, a real-time-sized dt should barely move the half.
+    final hitStopDt = AlaifMotion.hitStopMs / 1000;
+    game.update(hitStopDt);
+    final yDuringHitStop = half.position.y;
+    expect(yDuringHitStop - yBefore, lessThan(1.0));
+
+    // After the hit-stop window elapses, the same dt advances normally.
+    game.update(hitStopDt);
+    final yAfterHitStop = half.position.y;
+    expect(yAfterHitStop - yDuringHitStop, greaterThan(1.0));
+  });
+
+  testWithGame<AlaifGame>('hit-stop does not affect the game when no slice has occurred',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    final letter = LetterComponent(
+      letter: 'ب',
+      image: game.atlas.imageFor('ب'),
+      motion: ArcMotion(start: Vector2(100, 300), velocity: Vector2(0, 100), gravity: 0),
+    );
+    game.add(letter);
+    game.update(0); // mount
+
+    final yBefore = letter.position.y;
+    game.update(0.1);
+    expect(letter.position.y - yBefore, closeTo(10, 1e-9)); // unscaled dt
   });
 
   testWithGame<AlaifGame>('slicing a bomb costs a life', AlaifGame.new,

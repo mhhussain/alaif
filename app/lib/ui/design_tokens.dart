@@ -105,7 +105,7 @@ abstract class AlaifRadii {
 // ---------------------------------------------------------------------------
 abstract class AlaifFonts {
   static const ui = 'Spectral'; // Latin UI serif
-  static const arabic = 'ArefRuqaa'; // calligraphic hero glyph + Arabic accents
+  static const arabic = 'Katibeh'; // Thuluth-flavored hero glyph + Arabic accents
 }
 
 abstract class AlaifType {
@@ -207,6 +207,15 @@ abstract class AlaifMotion {
   static const cutParticleLifeMs = 520;
   static const cutHalfTumbleMs = 900; // sliced halves spin off-screen
 
+  // Sliced-half separation impulse, perpendicular to the cut line.
+  static const cutSeparationBaseSpeed = 150.0; // px/s, floor (slow swipes)
+  static const cutSeparationSwipeScale = 1.5; // extra px/s per px of swipe segment
+  static const cutSeparationMaxSpeed = 900.0; // px/s, ceiling (fast swipes)
+
+  // Hit-stop — brief simulation slowdown on a successful slice, for impact.
+  static const hitStopMs = 50; // real-time duration of the slowdown
+  static const hitStopScale = 0.05; // dt multiplier while hit-stop is active
+
   // Combo — gold dust burst on 3+ in one swipe.
   static const comboDustParticles = 18;
   static const comboFlashMs = 600; // combo callout fade
@@ -232,11 +241,57 @@ abstract class AlaifGlyph {
   static const texturePadding = 24.0;
 
   /// On-screen letter size range (diameter-ish) at spawn.
-  static const spawnSizeMin = 96.0;
-  static const spawnSizeMax = 132.0;
+  static const spawnSizeMin = 196.0;
+  static const spawnSizeMax = 332.0;
 
   /// Soft drop shadow baked into the texture (cheap depth on paper).
   static const shadowBlur = 3.0;
   static const shadowOffsetY = 2.0;
   static const shadowColor = Color(0x2E1B1712); // ~0.18 ink
+}
+
+// ---------------------------------------------------------------------------
+// CARRIER CARD  (GlyphAtlas — paper card baked behind each glyph)
+// ---------------------------------------------------------------------------
+/// Tokens for the paper "carrier card" each glyph is baked onto (device
+/// review 1, decision 3): a slightly-rotated warm paper card with a deckled
+/// edge, baked shadow, and hairline border. The card is square; its side is
+/// `glyphMaxExtent * paddingFactor`. Hit circle and cut geometry derive from
+/// this known square geometry — no pixel scanning.
+abstract class AlaifCard {
+  /// Card fill — slightly brighter than the canvas paper so cards read as
+  /// distinct surfaces sitting on top of the background.
+  static const color = Color(0xFFF7F1E3);
+
+  /// Hairline border stroked around the card edge.
+  static const edgeColor = AlaifColors.hairline;
+
+  /// Card side = glyph max extent (width or height of the rendered glyph,
+  /// including its own texture padding) * this factor. > 1 so the card is
+  /// visibly larger than the bare glyph.
+  static const paddingFactor = 1.35;
+
+  /// Peak outward/inward wobble of the deckled edge, in texture pixels.
+  /// The deckle is generated deterministically per letter (seeded by the
+  /// letter's position in [GlyphAtlas.letters]) so it is stable across loads.
+  static const deckleAmplitude = 6.0;
+
+  /// Number of wobble segments per card edge (deckle "teeth" per side).
+  static const deckleSegmentsPerEdge = 5;
+
+  /// Corner radius of the card's base rounded-rect shape (before deckling).
+  static const cornerRadius = 18.0;
+
+  /// Soft baked shadow under the card (cheap depth on paper).
+  static const shadowColor = Color(0x331B1712); // ~0.20 ink
+  static const shadowBlur = 10.0;
+  static const shadowOffsetY = 6.0;
+
+  /// The component's hit-circle radius is
+  /// `(cardSide * componentScale / 2) * hitRadiusFactor` — the inscribed
+  /// circle of the square card, scaled slightly for a forgiving hit area.
+  /// 1.0 == exactly the inscribed circle; values > 1.0 would extend past the
+  /// card's straight edges, so this stays <= 1.0 ("slightly generous" means
+  /// close to 1.0, not over it).
+  static const hitRadiusFactor = 0.92;
 }

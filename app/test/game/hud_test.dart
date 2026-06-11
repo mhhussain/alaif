@@ -2,7 +2,10 @@ import 'dart:ui' as ui;
 
 import 'package:alaif/game/alaif_game.dart';
 import 'package:alaif/game/hud.dart';
+import 'package:alaif/ui/design_tokens.dart';
+import 'package:flame/components.dart';
 import 'package:flame_test/flame_test.dart';
+import 'package:flutter/widgets.dart' show EdgeInsets;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -46,5 +49,33 @@ void main() {
     final recorder = ui.PictureRecorder();
     hud.render(ui.Canvas(recorder));
     recorder.endRecording().dispose();
+  });
+
+  testWithGame<AlaifGame>('game.safePadding defaults to zero',
+      AlaifGame.new, (game) async {
+    expect(game.safePadding, EdgeInsets.zero);
+  });
+
+  testWithGame<AlaifGame>(
+      'hud score origin is offset by game.safePadding top and left',
+      AlaifGame.new, (game) async {
+    game.safePadding = const EdgeInsets.only(top: 40, left: 20, right: 10);
+    game.startGame();
+    game.update(0);
+    final hud = game.children.whereType<Hud>().single;
+
+    expect(hud.scoreOrigin, Vector2(AlaifSpacing.xl + 20, AlaifSpacing.lg + 40));
+  });
+
+  testWithGame<AlaifGame>(
+      'hud lives-dot row is offset by game.safePadding top and right',
+      AlaifGame.new, (game) async {
+    game.safePadding = const EdgeInsets.only(top: 40, left: 20, right: 10);
+    game.startGame();
+    game.update(0);
+    final hud = game.children.whereType<Hud>().single;
+
+    expect(hud.livesRowRight, game.size.x - AlaifSpacing.xl - 10);
+    expect(hud.livesRowCenterY, AlaifSpacing.lg + 14 + 40);
   });
 }
