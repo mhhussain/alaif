@@ -1,5 +1,8 @@
 # Log
 
+## [2026-06-11] decision | Audio/haptics/bomb FX/topbar fixes plan written
+4-task TDD plan at plans/2026-06-11-polish-2-fixes: AudioService bgm controls wired into AlaifGame lifecycle, AndroidManifest VIBRATE permission, spawnBombBurst ink-splat reusing InkBurstComponent, ControlsOverlay padding fix to clear HUD lives dots. Branch fix/polish-2. Ready for subagent-driven execution.
+
 ## [2026-06-11] decision | Audio/haptics/bomb FX/topbar fixes spec approved
 Spec [[audio-haptics-bomb-topbar-fixes]] approved: bg music loop via FlameAudio.bgm started on load and paused with game pause/lifecycle, Android VIBRATE permission for already-wired haptics, ink-splat bomb effect reusing slice burst component, pause button repositioned to clear HUD lives dots. Branch fix/polish-2. Implementation plan next.
 
