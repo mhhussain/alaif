@@ -252,7 +252,7 @@ abstract class AlaifGlyph {
 abstract class AlaifCard {
   /// Card fill — slightly brighter than the canvas paper so cards read as
   /// distinct surfaces sitting on top of the background.
-  static const color = Color(0xFFF7F1E3);
+  static const color = Color(0xFFDCC8AA);
 
   /// Hairline border stroked around the card edge.
   static const edgeColor = AlaifColors.hairline;

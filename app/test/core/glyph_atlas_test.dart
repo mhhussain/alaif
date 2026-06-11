@@ -5,18 +5,21 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('renders a single glyph to a non-empty image', () async {
+  test('renders a single glyph card to a non-empty square image', () async {
     final image = await GlyphAtlas.renderGlyph('ب');
     expect(image.width, greaterThan(0));
     expect(image.height, greaterThan(0));
+    // The carrier card is square.
+    expect(image.width, image.height);
   });
 
-  test('glyph texture includes the spec padding on both axes', () async {
+  test('glyph card includes the spec padding plus card padding factor',
+      () async {
     final image = await GlyphAtlas.renderGlyph('ب');
-    // Texture = glyph box + 2 * texturePadding; the glyph itself is at least
-    // a few px wide, so the image must clearly exceed the padding alone.
-    expect(image.width, greaterThan((AlaifGlyph.texturePadding * 2).toInt()));
-    expect(image.height, greaterThan((AlaifGlyph.texturePadding * 2).toInt()));
+    // Card side = glyph box (>= 2*texturePadding) * paddingFactor, so the
+    // composite image must clearly exceed the bare texture padding alone.
+    expect(image.width,
+        greaterThan((AlaifGlyph.texturePadding * 2 * AlaifCard.paddingFactor).toInt()));
   });
 
   test('glyph pixels are ink, not the old gold gradient', () async {
@@ -35,6 +38,31 @@ void main() {
     expect(goldFound, isFalse, reason: 'old gold gradient should be gone');
   });
 
+  test('glyph card includes the carrier-card paper fill color', () async {
+    final image = await GlyphAtlas.renderGlyph('ب');
+    final data = (await image.toByteData())!;
+    var cardFound = false;
+    const cardColor = AlaifCard.color;
+    final cardR = (cardColor.r * 255).round();
+    final cardG = (cardColor.g * 255).round();
+    final cardB = (cardColor.b * 255).round();
+    for (var i = 0; i < data.lengthInBytes; i += 4) {
+      final r = data.getUint8(i);
+      final g = data.getUint8(i + 1);
+      final b = data.getUint8(i + 2);
+      final a = data.getUint8(i + 3);
+      if (a > 200 &&
+          (r - cardR).abs() <= 2 &&
+          (g - cardG).abs() <= 2 &&
+          (b - cardB).abs() <= 2) {
+        cardFound = true;
+        break;
+      }
+    }
+    expect(cardFound, isTrue,
+        reason: 'expected AlaifCard.color paper-fill pixels somewhere on the card');
+  });
+
   test('atlas exposes all 28 letters', () {
     expect(GlyphAtlas.letters.length, 28);
     expect(GlyphAtlas.letters.toSet().length, 28); // no duplicates
@@ -50,5 +78,32 @@ void main() {
 
   test('imageFor throws before load', () {
     expect(() => GlyphAtlas().imageFor('ب'), throwsStateError);
+  });
+
+  test('cardSizeFor returns the square card side for every letter after load',
+      () async {
+    final atlas = GlyphAtlas();
+    await atlas.load();
+    for (final letter in GlyphAtlas.letters) {
+      final side = atlas.cardSizeFor(letter);
+      expect(side, greaterThan(0));
+      expect(side, atlas.imageFor(letter).width.toDouble());
+      expect(side, atlas.imageFor(letter).height.toDouble());
+    }
+  });
+
+  test('cardSizeFor throws before load', () {
+    expect(() => GlyphAtlas().cardSizeFor('ب'), throwsStateError);
+  });
+
+  test('renderGlyph is deterministic for the same letter (stable deckle seed)',
+      () async {
+    final a = await GlyphAtlas.renderGlyph('ب');
+    final b = await GlyphAtlas.renderGlyph('ب');
+    expect(a.width, b.width);
+    expect(a.height, b.height);
+    final dataA = (await a.toByteData())!;
+    final dataB = (await b.toByteData())!;
+    expect(dataA.buffer.asUint8List(), dataB.buffer.asUint8List());
   });
 }
