@@ -30,9 +30,14 @@ void main() {
     for (var i = 0; i < data.lengthInBytes; i += 4) {
       final r = data.getUint8(i);
       final g = data.getUint8(i + 1);
+      final b = data.getUint8(i + 2);
       final a = data.getUint8(i + 3);
       if (a > 200 && r < 0x40 && g < 0x40) inkFound = true;
-      if (a > 200 && r > 0xE0 && g > 0x90) goldFound = true; // 0xFFFFD97A-ish
+      // Saturated gold (~0xFFFFD97A: r=0xFF, g=0xD9, b=0x7A) has a low blue
+      // channel, unlike the warm paper carrier-card fill (~0xFFF7F1E3:
+      // r=0xF7, g=0xF1, b=0xE3) which is high in blue. The b < 0x80 check
+      // keeps this heuristic from false-flagging the paper as gold.
+      if (a > 200 && r > 0xE0 && g > 0x90 && b < 0x80) goldFound = true;
     }
     expect(inkFound, isTrue, reason: 'expected near-black ink pixels');
     expect(goldFound, isFalse, reason: 'old gold gradient should be gone');
