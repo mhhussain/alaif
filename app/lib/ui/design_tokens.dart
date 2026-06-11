@@ -241,8 +241,8 @@ abstract class AlaifGlyph {
   static const texturePadding = 24.0;
 
   /// On-screen letter size range (diameter-ish) at spawn.
-  static const spawnSizeMin = 196.0;
-  static const spawnSizeMax = 332.0;
+  static const spawnSizeMin = 96.0;
+  static const spawnSizeMax = 132.0;
 
   /// Soft drop shadow baked into the texture (cheap depth on paper).
   static const shadowBlur = 3.0;
