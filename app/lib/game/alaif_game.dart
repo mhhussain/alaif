@@ -3,7 +3,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flame/game.dart';
-import 'package:flutter/widgets.dart' show AppLifecycleState, SizedBox;
+import 'package:flutter/widgets.dart' show AppLifecycleState, EdgeInsets, SizedBox;
 
 import '../core/game_rules.dart';
 import '../core/glyph_atlas.dart';
@@ -39,6 +39,13 @@ class AlaifGame extends FlameGame {
         _random = random ?? Random();
 
   final GlyphAtlas atlas = GlyphAtlas();
+
+  /// Device safe-area insets (notch/status bar/gesture nav), set from
+  /// `MediaQuery` by the widget that builds the `GameWidget`. Used by [Hud]
+  /// to keep score/lives clear of screen cutouts now that the game canvas
+  /// paints edge-to-edge (no `SafeArea` ancestor).
+  EdgeInsets safePadding = EdgeInsets.zero;
+
   final ScoreState scoreState = ScoreState();
   final GameRules rules = GameRules();
   final HighScoreStore highScores;

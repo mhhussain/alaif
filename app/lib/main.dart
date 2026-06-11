@@ -35,15 +35,20 @@ class AlaifApp extends StatelessWidget {
       theme: buildAlaifTheme(),
       home: Scaffold(
         backgroundColor: AlaifColors.paper,
-        body: GameWidget<AlaifGame>.controlled(
-          gameFactory: AlaifGame.new,
-          overlayBuilderMap: {
-            'menu': (context, game) => MenuOverlay(game: game),
-            'gameOver': (context, game) => GameOverOverlay(game: game),
-            'paused': (context, game) => PauseOverlay(game: game),
-            'controls': (context, game) => ControlsOverlay(game: game),
-            'howTo': (context, game) => HowToOverlay(game: game),
-            'settings': (context, game) => SettingsOverlay(game: game),
+        body: Builder(
+          builder: (context) {
+            final padding = MediaQuery.paddingOf(context);
+            return GameWidget<AlaifGame>.controlled(
+              gameFactory: () => AlaifGame()..safePadding = padding,
+              overlayBuilderMap: {
+                'menu': (context, game) => MenuOverlay(game: game),
+                'gameOver': (context, game) => GameOverOverlay(game: game),
+                'paused': (context, game) => PauseOverlay(game: game),
+                'controls': (context, game) => ControlsOverlay(game: game),
+                'howTo': (context, game) => HowToOverlay(game: game),
+                'settings': (context, game) => SettingsOverlay(game: game),
+              },
+            );
           },
         ),
       ),
