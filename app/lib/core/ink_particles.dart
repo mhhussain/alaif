@@ -44,18 +44,19 @@ List<InkParticle> _burst(
   required Color color,
   required double radiusMin,
   required double radiusMax,
+  double speedMin = AlaifMotion.cutParticleSpeedMin,
+  double speedMax = AlaifMotion.cutParticleSpeedMax,
+  int lifeMs = AlaifMotion.cutParticleLifeMs,
 }) {
   return List.generate(count, (_) {
     final angle = random.nextDouble() * 2 * pi;
-    final speed = AlaifMotion.cutParticleSpeedMin +
-        random.nextDouble() *
-            (AlaifMotion.cutParticleSpeedMax - AlaifMotion.cutParticleSpeedMin);
+    final speed = speedMin + random.nextDouble() * (speedMax - speedMin);
     return InkParticle(
       position: center.clone(),
       velocity: Vector2(cos(angle) * speed, sin(angle) * speed),
       radius: radiusMin + random.nextDouble() * (radiusMax - radiusMin),
       color: color,
-      lifeMs: AlaifMotion.cutParticleLifeMs,
+      lifeMs: lifeMs,
     );
   });
 }
@@ -78,4 +79,19 @@ List<InkParticle> spawnComboBurst(Vector2 center, Random random) => _burst(
       color: AlaifColors.goldDust,
       radiusMin: 1.0,
       radiusMax: 2.5,
+    );
+
+/// Dark ink splat thrown when a bomb is sliced (spec: bomb visual feedback).
+/// Bigger, slower, and longer-lived than [spawnCutBurst] so it reads as a
+/// heavy splash rather than a clean cut.
+List<InkParticle> spawnBombBurst(Vector2 center, Random random) => _burst(
+      center,
+      random,
+      count: AlaifMotion.bombInkParticles,
+      color: AlaifColors.ink,
+      radiusMin: 3.0,
+      radiusMax: 7.0,
+      speedMin: AlaifMotion.bombParticleSpeedMin,
+      speedMax: AlaifMotion.bombParticleSpeedMax,
+      lifeMs: AlaifMotion.bombParticleLifeMs,
     );

@@ -280,6 +280,20 @@ void main() {
     expect(game.rules.lives, 2);
   });
 
+  testWithGame<AlaifGame>('slicing a bomb throws an ink burst', AlaifGame.new,
+      (game) async {
+    game.startGame();
+    game.add(BombComponent(
+      motion: ArcMotion(start: Vector2(100, 300), velocity: Vector2.zero(), gravity: 0),
+    ));
+    game.update(0);
+
+    game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.update(0);
+
+    expect(game.children.whereType<InkBurstComponent>().length, 1);
+  });
+
   testWithGame<AlaifGame>('a letter falling offscreen after entering costs a life',
       AlaifGame.new, (game) async {
     game.startGame();

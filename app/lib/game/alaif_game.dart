@@ -129,6 +129,7 @@ class AlaifGame extends FlameGame {
     }
     for (final bomb in children.whereType<BombComponent>().toList()) {
       if (segmentHitsCircle(from, to, bomb.position, bomb.hitRadius)) {
+        add(InkBurstComponent(particles: spawnBombBurst(bomb.position, _random)));
         bomb.removeFromParent();
         rules.onBombSliced();
         haptics.onBomb();
