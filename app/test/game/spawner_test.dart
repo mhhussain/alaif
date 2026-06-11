@@ -17,7 +17,7 @@ void main() {
       AlaifGame.new, (game) async {
     game.startGame();
     game.update(0);
-    game.children.whereType<Spawner>().forEach((s) => s.removeFromParent());
+    game.children.whereType<Spawner>().toList().forEach((s) => s.removeFromParent());
     game.update(0);
     game.add(Spawner(random: Random(42)));
     game.update(0); // mount
@@ -40,4 +40,39 @@ void main() {
     game.update(0);
     expect(game.children.whereType<Spawner>().length, 1);
   });
+
+  /// Starts the game with a freshly-seeded [Spawner], advances until the
+  /// first letter appears, and returns its spawn-toss angle.
+  Future<double> firstSpawnedLetterAngle(AlaifGame game, int seed) async {
+    game.startGame();
+    game.update(0);
+    game.children.whereType<Spawner>().toList().forEach((s) => s.removeFromParent());
+    game.update(0);
+    game.add(Spawner(random: Random(seed)));
+    game.update(0); // mount
+
+    for (var i = 0; i < 30; i++) {
+      game.update(0.1);
+      final letters = game.children.whereType<LetterComponent>().toList();
+      if (letters.isNotEmpty) {
+        return letters.first.angle;
+      }
+    }
+    fail('No letter spawned within 30 ticks for seed $seed');
+  }
+
+  testWithGame<AlaifGame>(
+      'spawned letters get a deterministic spawn-toss angle within ±0.12 rad',
+      AlaifGame.new, (game) async {
+    final angle = await firstSpawnedLetterAngle(game, 42);
+    expect(angle, inInclusiveRange(-0.12, 0.12));
+  });
+
+  testWithGame<AlaifGame>(
+      'the spawn-toss angle is deterministic for the same seed',
+      AlaifGame.new, (game) async {
+    final angle = await firstSpawnedLetterAngle(game, 42);
+    expect(angle, closeTo(-0.062405800083475696, 1e-9));
+  });
+
 }

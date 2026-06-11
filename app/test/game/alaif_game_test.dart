@@ -116,6 +116,37 @@ void main() {
   });
 
   testWithGame<AlaifGame>(
+      'slicing a rotated letter bakes the cut and halves at the letter\'s angle',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    final letter = staticLetter(game);
+    game.add(letter);
+    game.update(0); // mount
+
+    // Give the letter a known non-zero rotation, as if it had spawned with a
+    // toss and/or tumbled mid-flight.
+    const letterAngle = 0.3;
+    letter.angle = letterAngle;
+
+    final swipeFrom = Vector2(100, 200);
+    final swipeTo = Vector2(100, 400);
+    game.trySlice(swipeFrom, swipeTo);
+    game.update(0); // process removal/additions
+
+    final halves = game.children.whereType<SlicedHalf>().toList();
+    expect(halves.length, 2);
+
+    final worldDirection = (swipeTo - swipeFrom).normalized();
+    final expectedLocalDirection = rotateVector(worldDirection, -letterAngle);
+
+    for (final half in halves) {
+      expect(half.angle, closeTo(letterAngle, 1e-9));
+      expect(half.cutDirection.x, closeTo(expectedLocalDirection.x, 1e-9));
+      expect(half.cutDirection.y, closeTo(expectedLocalDirection.y, 1e-9));
+    }
+  });
+
+  testWithGame<AlaifGame>(
       'a degenerate (zero-length) swipe segment falls back to a horizontal cut',
       AlaifGame.new, (game) async {
     game.startGame();

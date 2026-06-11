@@ -161,19 +161,29 @@ class AlaifGame extends FlameGame {
       particles: spawnCutBurst(letter.position, _random),
     ));
 
-    // Cut direction follows the swipe; degenerate (zero-length) segments
-    // fall back to a horizontal cut. The cut always passes through the
-    // card's center (the component's local center, size / 2).
+    // Cut direction follows the swipe in WORLD space; degenerate
+    // (zero-length) segments fall back to a horizontal cut. The cut always
+    // passes through the card's center (the component's local center,
+    // size / 2).
     final swipeVector = swipeTo - swipeFrom;
-    final cutDirection = swipeVector.length2 > 0
+    final worldCutDirection = swipeVector.length2 > 0
         ? (swipeVector.clone()..normalize())
         : Vector2(1, 0);
     final cutCenter = letter.size / 2;
 
+    // SlicedHalf clips in the letter's local (unrotated) frame, so rotate the
+    // world-space cut direction by -letter.angle to get the direction in that
+    // frame. This keeps the baked clip line aligned with the swipe as drawn,
+    // even though the letter (and thus its halves) may be tilted.
+    final letterAngle = letter.angle;
+    final localCutDirection = rotateVector(worldCutDirection, -letterAngle);
+
     // Halves separate perpendicular to the cut line, with an impulse scaled
     // by the swipe segment's length (a proxy for swipe speed), clamped, plus
-    // a shared upward pop.
-    final perp = Vector2(-cutDirection.y, cutDirection.x);
+    // a shared upward pop. This separation is computed in WORLD space so the
+    // halves fly apart relative to the actual swipe regardless of the
+    // letter's rotation.
+    final worldPerp = Vector2(-worldCutDirection.y, worldCutDirection.x);
     final separationSpeed = (AlaifMotion.cutSeparationBaseSpeed +
             swipeVector.length * AlaifMotion.cutSeparationSwipeScale)
         .clamp(AlaifMotion.cutSeparationBaseSpeed, AlaifMotion.cutSeparationMaxSpeed);
@@ -182,22 +192,24 @@ class AlaifGame extends FlameGame {
     add(SlicedHalf(
       image: letter.image,
       startPosition: letter.position,
-      velocity: perp * separationSpeed + _halfPopVelocity,
+      velocity: worldPerp * separationSpeed + _halfPopVelocity,
       topHalf: true,
       removeBelowY: cutoff,
       displaySize: letter.size.clone(),
       cutCenter: cutCenter,
-      cutDirection: cutDirection,
+      cutDirection: localCutDirection,
+      angle: letterAngle,
     ));
     add(SlicedHalf(
       image: letter.image,
       startPosition: letter.position,
-      velocity: -perp * separationSpeed + _halfPopVelocity,
+      velocity: -worldPerp * separationSpeed + _halfPopVelocity,
       topHalf: false,
       removeBelowY: cutoff,
       displaySize: letter.size.clone(),
       cutCenter: cutCenter,
-      cutDirection: cutDirection,
+      cutDirection: localCutDirection,
+      angle: letterAngle,
     ));
   }
 
@@ -292,4 +304,16 @@ class AlaifGame extends FlameGame {
     super.lifecycleStateChange(state);
     if (state != AppLifecycleState.resumed) pauseGame();
   }
+}
+
+/// Rotates [v] by [angle] radians using Flame's rotation convention (positive
+/// angle is clockwise in screen space, matching [PositionComponent.angle] /
+/// `Matrix4.rotateZ`). Returns a new vector; [v] is not mutated.
+Vector2 rotateVector(Vector2 v, double angle) {
+  final cosA = cos(angle);
+  final sinA = sin(angle);
+  return Vector2(
+    cosA * v.x - sinA * v.y,
+    sinA * v.x + cosA * v.y,
+  );
 }

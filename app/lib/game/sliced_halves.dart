@@ -19,12 +19,14 @@ class SlicedHalf extends PositionComponent {
     Vector2? displaySize,
     Vector2? cutCenter,
     Vector2? cutDirection,
+    double angle = 0,
   })  : _image = image,
         _velocity = velocity.clone() {
     size = displaySize?.clone() ??
         Vector2(image.width.toDouble(), image.height.toDouble());
     anchor = Anchor.center;
     position = startPosition.clone();
+    this.angle = angle;
 
     // Default cut: horizontal line through the component's center, matching
     // a plain top/bottom split when no swipe geometry is given.
@@ -70,14 +72,20 @@ class SlicedHalf extends PositionComponent {
     }
   }
 
+  /// Cached clip path for this half's fixed [size]/[_cutCenter]/[_cutDirection].
+  /// `size` is finalized in the constructor before this is first accessed, so
+  /// computing it lazily on first render is safe and avoids a per-frame
+  /// `Path` rebuild.
+  late final ui.Path _clipPath = halfPlanePath(
+    size: size,
+    cutCenter: _cutCenter,
+    cutDirection: _cutDirection,
+    keepPositiveSide: topHalf,
+  );
+
   @override
   void render(ui.Canvas canvas) {
-    final clip = halfPlanePath(
-      size: size,
-      cutCenter: _cutCenter,
-      cutDirection: _cutDirection,
-      keepPositiveSide: topHalf,
-    );
+    final clip = _clipPath;
     canvas.save();
     canvas.clipPath(clip);
     canvas.drawImageRect(
