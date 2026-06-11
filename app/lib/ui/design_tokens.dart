@@ -105,7 +105,7 @@ abstract class AlaifRadii {
 // ---------------------------------------------------------------------------
 abstract class AlaifFonts {
   static const ui = 'Spectral'; // Latin UI serif
-  static const arabic = 'ArefRuqaa'; // calligraphic hero glyph + Arabic accents
+  static const arabic = 'Katibeh'; // Thuluth-flavored hero glyph + Arabic accents
 }
 
 abstract class AlaifType {
@@ -232,8 +232,8 @@ abstract class AlaifGlyph {
   static const texturePadding = 24.0;
 
   /// On-screen letter size range (diameter-ish) at spawn.
-  static const spawnSizeMin = 96.0;
-  static const spawnSizeMax = 132.0;
+  static const spawnSizeMin = 196.0;
+  static const spawnSizeMax = 332.0;
 
   /// Soft drop shadow baked into the texture (cheap depth on paper).
   static const shadowBlur = 3.0;

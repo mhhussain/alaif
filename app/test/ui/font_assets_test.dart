@@ -8,10 +8,9 @@ void main() {
     'assets/fonts/Spectral-Italic.ttf',
     'assets/fonts/Spectral-Medium.ttf',
     'assets/fonts/Spectral-MediumItalic.ttf',
-    'assets/fonts/ArefRuqaa-Regular.ttf',
-    'assets/fonts/ArefRuqaa-Bold.ttf',
+    'assets/fonts/Katibeh-Regular.ttf',
     'assets/fonts/OFL-Spectral.txt',
-    'assets/fonts/OFL-ArefRuqaa.txt',
+    'assets/fonts/OFL-Katibeh.txt',
   ];
 
   test('all vendored font files and licenses exist and are non-empty', () {
@@ -22,11 +21,23 @@ void main() {
     }
   });
 
-  test('pubspec declares both font families and the OFL fonts dir asset', () {
+  test('ArefRuqaa font files are no longer vendored', () {
+    for (final path in [
+      'assets/fonts/ArefRuqaa-Regular.ttf',
+      'assets/fonts/ArefRuqaa-Bold.ttf',
+      'assets/fonts/OFL-ArefRuqaa.txt',
+    ]) {
+      expect(File(path).existsSync(), isFalse,
+          reason: '$path should have been removed with the Katibeh swap');
+    }
+  });
+
+  test('pubspec declares both font families and the Katibeh asset', () {
     final pubspec = File('pubspec.yaml').readAsStringSync();
     expect(pubspec, contains('family: Spectral'));
-    expect(pubspec, contains('family: ArefRuqaa'));
+    expect(pubspec, contains('family: Katibeh'));
     expect(pubspec, contains('assets/fonts/Spectral-MediumItalic.ttf'));
-    expect(pubspec, contains('assets/fonts/ArefRuqaa-Bold.ttf'));
+    expect(pubspec, contains('assets/fonts/Katibeh-Regular.ttf'));
+    expect(pubspec, isNot(contains('ArefRuqaa')));
   });
 }
