@@ -1,5 +1,8 @@
 # Log
 
+## [2026-06-11] decision | Device review fixes executed (rev 2)
+All 11 tasks executed via subagents on fix/device-review-1 (local only, awaiting device verification): slice dedup + SFX cooldown, true edge-to-edge with live safe-area insets into HUD, Katibeh font, deckled paper carrier cards under glyphs, swipe-angle rotation-aware cuts with speed-scaled impulse, hit-stop. 143 tests passing, analyze clean. Review fixes: live MediaQuery inset sync (stateful game host), restored approved card color (test heuristic was the bug), rotation-aware cut frames + cached clip path + spawner toss wiring.
+
 ## [2026-06-10] decision | Device review fixes revised: carrier-card slicing + Katibeh
 Second device pass: bare-glyph cuts can't feel good (thin/concave/dotted glyphs ⇒ empty halves; vector outlines and shader masks rejected — they don't change what lands in each half). New approach: glyph baked onto deckled paper card, slice the composite, swipe-angle half-plane cut, swipe-scaled impulse, hit-stop. Font → Katibeh (closest OFL Thuluth-flavored; no genuine open Thuluth exists). Spec [[device-review-1-fixes]] updated; plan rev 2 (11 tasks) supersedes ink-rect tasks 5-9.
 
