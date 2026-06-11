@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:alaif/core/arc_motion.dart';
@@ -34,7 +35,7 @@ void main() {
     expect(letter.position, Vector2(120, 200));
   });
 
-  test('letter hit radius derives from its scaled on-screen size', () async {
+  test('letter hit radius derives from its scaled on-screen size via AlaifCard.hitRadiusFactor', () async {
     final image = await testImage(width: 80, height: 80);
     final letter = LetterComponent(
       letter: 'ب',
@@ -42,10 +43,11 @@ void main() {
       motion: ArcMotion(start: Vector2.zero(), velocity: Vector2.zero()),
       targetSize: 80,
     );
-    expect(letter.hitRadius, 40);
+    // size is (80, 80); hitRadius = max(size.x, size.y) / 2 * hitRadiusFactor.
+    expect(letter.hitRadius, 80 / 2 * AlaifCard.hitRadiusFactor);
   });
 
-  test('letter scales its texture down to targetSize, keeping aspect', () async {
+  test('letter scales its texture down to targetSize, keeping aspect, and hitRadius follows', () async {
     final image = await testImage(width: 100, height: 200);
     final letter = LetterComponent(
       letter: 'ب',
@@ -54,7 +56,41 @@ void main() {
       targetSize: 100,
     );
     expect(letter.size, Vector2(50, 100)); // longest edge == targetSize
-    expect(letter.hitRadius, 25);
+    // hitRadius = max(size.x, size.y) / 2 * hitRadiusFactor = max(50,100)/2 * factor.
+    expect(letter.hitRadius, 100 / 2 * AlaifCard.hitRadiusFactor);
+  });
+
+  test('letter with no random source gets zero extra rotation', () async {
+    final image = await testImage(width: 80, height: 80);
+    final letter = LetterComponent(
+      letter: 'ب',
+      image: image,
+      motion: ArcMotion(start: Vector2.zero(), velocity: Vector2.zero()),
+      targetSize: 80,
+    );
+    expect(letter.angle, 0);
+  });
+
+  test('letter with a seeded random source gets a small fixed rotation in [-0.12, 0.12] rad', () async {
+    final image = await testImage(width: 80, height: 80);
+    final letter = LetterComponent(
+      letter: 'ب',
+      image: image,
+      motion: ArcMotion(start: Vector2.zero(), velocity: Vector2.zero()),
+      targetSize: 80,
+      random: Random(42),
+    );
+    expect(letter.angle, greaterThanOrEqualTo(-0.12));
+    expect(letter.angle, lessThanOrEqualTo(0.12));
+    // Same seed -> same rotation (deterministic).
+    final again = LetterComponent(
+      letter: 'ب',
+      image: image,
+      motion: ArcMotion(start: Vector2.zero(), velocity: Vector2.zero()),
+      targetSize: 80,
+      random: Random(42),
+    );
+    expect(again.angle, letter.angle);
   });
 
   test('letter defaults to the max spawn size from the tokens', () async {
