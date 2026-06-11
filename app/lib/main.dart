@@ -35,23 +35,38 @@ class AlaifApp extends StatelessWidget {
       theme: buildAlaifTheme(),
       home: Scaffold(
         backgroundColor: AlaifColors.paper,
-        body: Builder(
-          builder: (context) {
-            final padding = MediaQuery.paddingOf(context);
-            return GameWidget<AlaifGame>.controlled(
-              gameFactory: () => AlaifGame()..safePadding = padding,
-              overlayBuilderMap: {
-                'menu': (context, game) => MenuOverlay(game: game),
-                'gameOver': (context, game) => GameOverOverlay(game: game),
-                'paused': (context, game) => PauseOverlay(game: game),
-                'controls': (context, game) => ControlsOverlay(game: game),
-                'howTo': (context, game) => HowToOverlay(game: game),
-                'settings': (context, game) => SettingsOverlay(game: game),
-              },
-            );
-          },
-        ),
+        body: const _GameHost(),
       ),
+    );
+  }
+}
+
+/// Hosts the [AlaifGame] instance and keeps its [AlaifGame.safePadding]
+/// in sync with the current [MediaQuery] insets on every rebuild (e.g.
+/// when the device rotates or system insets otherwise change).
+class _GameHost extends StatefulWidget {
+  const _GameHost();
+
+  @override
+  State<_GameHost> createState() => _GameHostState();
+}
+
+class _GameHostState extends State<_GameHost> {
+  late final AlaifGame _game = AlaifGame();
+
+  @override
+  Widget build(BuildContext context) {
+    _game.safePadding = MediaQuery.paddingOf(context);
+    return GameWidget<AlaifGame>(
+      game: _game,
+      overlayBuilderMap: {
+        'menu': (context, game) => MenuOverlay(game: game),
+        'gameOver': (context, game) => GameOverOverlay(game: game),
+        'paused': (context, game) => PauseOverlay(game: game),
+        'controls': (context, game) => ControlsOverlay(game: game),
+        'howTo': (context, game) => HowToOverlay(game: game),
+        'settings': (context, game) => SettingsOverlay(game: game),
+      },
     );
   }
 }

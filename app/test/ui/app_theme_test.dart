@@ -46,4 +46,29 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets('AlaifApp keeps game safePadding in sync with MediaQuery insets',
+      (tester) async {
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.padding = const FakeViewPadding(top: 44, bottom: 34);
+
+    await tester.pumpWidget(const AlaifApp());
+    await tester.pump();
+
+    final gameWidget =
+        tester.widget<GameWidget<AlaifGame>>(find.byType(GameWidget<AlaifGame>));
+    final game = gameWidget.game!;
+    final context = tester.element(find.byType(GameWidget<AlaifGame>));
+    expect(game.safePadding, MediaQuery.paddingOf(context));
+    expect(game.safePadding, const EdgeInsets.only(top: 44, bottom: 34));
+
+    // Simulate an inset change (e.g. rotation) and confirm it propagates.
+    tester.view.padding = const FakeViewPadding(top: 24, bottom: 0);
+    await tester.pump();
+
+    expect(game.safePadding, const EdgeInsets.only(top: 24, bottom: 0));
+  });
 }
