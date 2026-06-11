@@ -1,5 +1,8 @@
 # Log
 
+## [2026-06-11] decision | Audio/haptics/bomb FX/topbar fixes spec approved
+Spec [[audio-haptics-bomb-topbar-fixes]] approved: bg music loop via FlameAudio.bgm started on load and paused with game pause/lifecycle, Android VIBRATE permission for already-wired haptics, ink-splat bomb effect reusing slice burst component, pause button repositioned to clear HUD lives dots. Branch fix/polish-2. Implementation plan next.
+
 ## [2026-06-11] decision | Device review fixes executed (rev 2)
 All 11 tasks executed via subagents on fix/device-review-1 (local only, awaiting device verification): slice dedup + SFX cooldown, true edge-to-edge with live safe-area insets into HUD, Katibeh font, deckled paper carrier cards under glyphs, swipe-angle rotation-aware cuts with speed-scaled impulse, hit-stop. 143 tests passing, analyze clean. Review fixes: live MediaQuery inset sync (stateful game host), restored approved card color (test heuristic was the bug), rotation-aware cut frames + cached clip path + spawner toss wiring.
 

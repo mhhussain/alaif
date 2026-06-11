@@ -1,12 +1,15 @@
+---
+title: Audio, Haptics, Bomb FX & Topbar Fixes
+type: spec
+created: 2026-06-11
+updated: 2026-06-11
+---
+
 # Background Music, Haptics, Bomb Effect, Topbar Fix
 
-- type: spec
-- created: 2026-06-11
-- status: approved
+Four small, independent gameplay polish fixes, branch `fix/polish-2` off `main`.
 
 ## Context
-
-Four small, independent gameplay polish fixes:
 
 1. `app/assets/audio/background.mp3` exists but isn't wired into playback.
 2. Haptic feedback code (`lib/services/haptics_service.dart`) is fully implemented but doesn't fire on Android — `VIBRATE` permission is missing from `AndroidManifest.xml`.

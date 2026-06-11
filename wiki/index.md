@@ -18,3 +18,4 @@
 - [plans/2026-06-09-pause-button](plans/2026-06-09-pause-button.md) — pause button via persistent 'controls' overlay. ✅ Executed. (2026-06-09)
 - [plans/2026-06-09-ink-and-paper-m3-m4](plans/2026-06-09-ink-and-paper-m3-m4.md) — 22-task TDD plan for M3+M4: Ink & Paper migration, juice, menus. ✅ Executed. (2026-06-10)
 - [plans/2026-06-10-device-review-1-fixes](plans/2026-06-10-device-review-1-fixes.md) — 11-task TDD plan for device review 1 fixes (rev 2: carrier-card slicing + Katibeh). ✅ Executed. (2026-06-11)
+- [[audio-haptics-bomb-topbar-fixes]] — spec for bg music loop, Android haptics permission, bomb ink-splat FX, pause button/HUD overlap fix. (2026-06-11)
