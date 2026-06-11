@@ -136,4 +136,104 @@ void main() {
     half.update(0.5); // y ≈ 100 + ~50–70 (gravity adds speed)
     expect(half.position.y, greaterThan(100));
   });
+
+  group('SlicedHalf.halfPlanePath', () {
+    test('horizontal cut through center: positive side keeps the bottom half', () {
+      final path = SlicedHalf.halfPlanePath(
+        size: Vector2(100, 100),
+        cutCenter: Vector2(50, 50),
+        cutDirection: Vector2(1, 0), // horizontal line y=50
+        keepPositiveSide: true, // normal = (0,1) -> positive side is y > 50
+      );
+      expect(path.contains(const ui.Offset(50, 90)), isTrue); // below the line
+      expect(path.contains(const ui.Offset(50, 10)), isFalse); // above the line
+    });
+
+    test('horizontal cut through center: negative side keeps the top half', () {
+      final path = SlicedHalf.halfPlanePath(
+        size: Vector2(100, 100),
+        cutCenter: Vector2(50, 50),
+        cutDirection: Vector2(1, 0),
+        keepPositiveSide: false,
+      );
+      expect(path.contains(const ui.Offset(50, 10)), isTrue); // above the line
+      expect(path.contains(const ui.Offset(50, 90)), isFalse); // below the line
+    });
+
+    test('vertical cut through center: positive side keeps the left half', () {
+      final path = SlicedHalf.halfPlanePath(
+        size: Vector2(100, 100),
+        cutCenter: Vector2(50, 50),
+        cutDirection: Vector2(0, 1), // vertical line x=50
+        keepPositiveSide: true, // normal = (-1,0) -> positive side is x < 50
+      );
+      // For direction (0,1), normal = (-dy, dx) = (-1, 0), so the positive
+      // side ((p-c) dot normal >= 0) is x <= 50 (the left half).
+      expect(path.contains(const ui.Offset(10, 50)), isTrue); // left
+      expect(path.contains(const ui.Offset(90, 50)), isFalse); // right
+    });
+
+    test('off-center cut point shifts the dividing line', () {
+      final path = SlicedHalf.halfPlanePath(
+        size: Vector2(100, 100),
+        cutCenter: Vector2(50, 20), // line y=20
+        cutDirection: Vector2(1, 0),
+        keepPositiveSide: true, // y > 20
+      );
+      expect(path.contains(const ui.Offset(50, 50)), isTrue); // y=50 > 20
+      expect(path.contains(const ui.Offset(50, 5)), isFalse); // y=5 < 20
+    });
+
+    test('zero-length cut direction falls back to horizontal', () {
+      final path = SlicedHalf.halfPlanePath(
+        size: Vector2(100, 100),
+        cutCenter: Vector2(50, 50),
+        cutDirection: Vector2.zero(),
+        keepPositiveSide: true,
+      );
+      expect(path.contains(const ui.Offset(50, 90)), isTrue); // below
+      expect(path.contains(const ui.Offset(50, 10)), isFalse); // above
+    });
+  });
+
+  testWithGame<AlaifGame>('sliced half defaults to a horizontal cut through its center',
+      AlaifGame.new, (game) async {
+    SharedPreferences.setMockInitialValues({});
+    final image = await testImage(width: 100, height: 100);
+    final half = SlicedHalf(
+      image: image,
+      startPosition: Vector2(100, 100),
+      velocity: Vector2.zero(),
+      topHalf: true,
+      removeBelowY: 100000,
+      displaySize: Vector2(100, 100),
+    );
+    expect(half.cutCenter, Vector2(50, 50));
+    expect(half.cutDirection, Vector2(1, 0));
+
+    final recorder = ui.PictureRecorder();
+    half.render(ui.Canvas(recorder));
+    recorder.endRecording().dispose();
+  });
+
+  testWithGame<AlaifGame>('sliced half with explicit cut geometry renders without throwing',
+      AlaifGame.new, (game) async {
+    SharedPreferences.setMockInitialValues({});
+    final image = await testImage();
+    final half = SlicedHalf(
+      image: image,
+      startPosition: Vector2(100, 100),
+      velocity: Vector2.zero(),
+      topHalf: true,
+      removeBelowY: 100000,
+      cutCenter: Vector2(20, 30),
+      cutDirection: Vector2(1, 1),
+    );
+    await game.add(half);
+    game.update(0);
+
+    final recorder = ui.PictureRecorder();
+    half.render(ui.Canvas(recorder));
+    recorder.endRecording().dispose();
+  });
 }

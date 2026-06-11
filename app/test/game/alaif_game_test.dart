@@ -8,6 +8,7 @@ import 'package:alaif/game/letter_component.dart';
 import 'package:alaif/game/sliced_halves.dart';
 import 'package:alaif/services/audio_service.dart';
 import 'package:alaif/services/haptics_service.dart';
+import 'package:alaif/ui/design_tokens.dart';
 import 'package:flame/components.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -88,6 +89,84 @@ void main() {
 
     expect(game.scoreState.score, ScoreState.pointsPerLetter);
     expect(game.children.whereType<SlicedHalf>().length, 2);
+  });
+
+  testWithGame<AlaifGame>(
+      'a vertical swipe produces sliced halves whose cut direction matches the swipe',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    final letter = staticLetter(game);
+    game.add(letter);
+    game.update(0); // mount
+
+    // Vertical swipe (top to bottom) through the letter's position.
+    game.trySlice(Vector2(100, 200), Vector2(100, 400));
+    game.update(0);
+
+    final halves = game.children.whereType<SlicedHalf>().toList();
+    expect(halves.length, 2);
+    for (final half in halves) {
+      // cutDirection should be (close to) vertical: |y| component dominates.
+      expect(half.cutDirection.x.abs(), lessThan(half.cutDirection.y.abs()));
+      // Cut passes through the letter's center.
+      expect(half.cutCenter, letter.size / 2);
+    }
+    // The two halves must separate from each other (different velocities).
+    expect(halves[0].velocity, isNot(equals(halves[1].velocity)));
+  });
+
+  testWithGame<AlaifGame>(
+      'a degenerate (zero-length) swipe segment falls back to a horizontal cut',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    final letter = staticLetter(game);
+    game.add(letter);
+    game.update(0);
+
+    // from == to: zero-length segment, but it still must hit (radius covers point).
+    game.trySlice(Vector2(100, 300), Vector2(100, 300));
+    game.update(0);
+
+    final halves = game.children.whereType<SlicedHalf>().toList();
+    expect(halves.length, 2);
+    for (final half in halves) {
+      expect(half.cutDirection, Vector2(1, 0));
+    }
+  });
+
+  testWithGame<AlaifGame>(
+      'a fast swipe produces a larger half-separation impulse than a slow one',
+      AlaifGame.new, (game) async {
+    game.startGame();
+
+    final slowLetter = staticLetter(game, x: 100, y: 300);
+    game.add(slowLetter);
+    game.update(0);
+    game.trySlice(Vector2(99, 300), Vector2(101, 300)); // tiny 2px segment
+    game.update(0);
+    final slowHalves = game.children.whereType<SlicedHalf>().toList();
+    final slowSpeed = slowHalves.first.velocity.length;
+
+    game.startGame(); // clears halves and resets state
+
+    final fastLetter = staticLetter(game, x: 100, y: 300);
+    game.add(fastLetter);
+    game.update(0);
+    game.trySlice(Vector2(0, 300), Vector2(800, 300)); // large fast segment
+    game.update(0);
+    final fastHalves = game.children.whereType<SlicedHalf>().toList();
+    final fastSpeed = fastHalves.first.velocity.length;
+
+    expect(fastSpeed, greaterThan(slowSpeed));
+    // Even the fast swipe is clamped.
+    // velocity = perp * separationSpeed + popVelocity (0, -100), so its
+    // magnitude is bounded by the clamped separation speed plus the pop
+    // velocity's length.
+    const popVelocityLength = 100.0; // matches AlaifGame's _halfPopVelocity
+    expect(
+      fastSpeed,
+      lessThanOrEqualTo(AlaifMotion.cutSeparationMaxSpeed + popVelocityLength),
+    );
   });
 
   testWithGame<AlaifGame>('slicing a bomb costs a life', AlaifGame.new,

@@ -119,7 +119,7 @@ class AlaifGame extends FlameGame {
     for (final letter in children.whereType<LetterComponent>().toList()) {
       if (letter.sliced) continue;
       if (segmentHitsCircle(from, to, letter.position, letter.hitRadius)) {
-        _sliceLetter(letter);
+        _sliceLetter(letter, from, to);
       }
     }
     for (final bomb in children.whereType<BombComponent>().toList()) {
@@ -147,7 +147,10 @@ class AlaifGame extends FlameGame {
     audio.playCombo();
   }
 
-  void _sliceLetter(LetterComponent letter) {
+  /// Shared upward "pop" velocity (px/s) added to both halves' separation.
+  static final Vector2 _halfPopVelocity = Vector2(0, -100);
+
+  void _sliceLetter(LetterComponent letter, Vector2 swipeFrom, Vector2 swipeTo) {
     letter.sliced = true;
     scoreState.registerHit();
     haptics.onSlice();
@@ -157,22 +160,44 @@ class AlaifGame extends FlameGame {
     add(InkBurstComponent(
       particles: spawnCutBurst(letter.position, _random),
     ));
+
+    // Cut direction follows the swipe; degenerate (zero-length) segments
+    // fall back to a horizontal cut. The cut always passes through the
+    // card's center (the component's local center, size / 2).
+    final swipeVector = swipeTo - swipeFrom;
+    final cutDirection = swipeVector.length2 > 0
+        ? (swipeVector.clone()..normalize())
+        : Vector2(1, 0);
+    final cutCenter = letter.size / 2;
+
+    // Halves separate perpendicular to the cut line, with an impulse scaled
+    // by the swipe segment's length (a proxy for swipe speed), clamped, plus
+    // a shared upward pop.
+    final perp = Vector2(-cutDirection.y, cutDirection.x);
+    final separationSpeed = (AlaifMotion.cutSeparationBaseSpeed +
+            swipeVector.length * AlaifMotion.cutSeparationSwipeScale)
+        .clamp(AlaifMotion.cutSeparationBaseSpeed, AlaifMotion.cutSeparationMaxSpeed);
+
     final cutoff = size.y + 200;
     add(SlicedHalf(
       image: letter.image,
       startPosition: letter.position,
-      velocity: Vector2(-120, -150),
+      velocity: perp * separationSpeed + _halfPopVelocity,
       topHalf: true,
       removeBelowY: cutoff,
       displaySize: letter.size.clone(),
+      cutCenter: cutCenter,
+      cutDirection: cutDirection,
     ));
     add(SlicedHalf(
       image: letter.image,
       startPosition: letter.position,
-      velocity: Vector2(120, -100),
+      velocity: -perp * separationSpeed + _halfPopVelocity,
       topHalf: false,
       removeBelowY: cutoff,
       displaySize: letter.size.clone(),
+      cutCenter: cutCenter,
+      cutDirection: cutDirection,
     ));
   }
 

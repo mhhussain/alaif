@@ -207,6 +207,11 @@ abstract class AlaifMotion {
   static const cutParticleLifeMs = 520;
   static const cutHalfTumbleMs = 900; // sliced halves spin off-screen
 
+  // Sliced-half separation impulse, perpendicular to the cut line.
+  static const cutSeparationBaseSpeed = 150.0; // px/s, floor (slow swipes)
+  static const cutSeparationSwipeScale = 1.5; // extra px/s per px of swipe segment
+  static const cutSeparationMaxSpeed = 900.0; // px/s, ceiling (fast swipes)
+
   // Combo — gold dust burst on 3+ in one swipe.
   static const comboDustParticles = 18;
   static const comboFlashMs = 600; // combo callout fade
