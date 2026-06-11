@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'game/alaif_game.dart';
 import 'ui/alaif_theme.dart';
 import 'ui/controls_overlay.dart';
+import 'ui/design_tokens.dart';
 import 'ui/game_over_overlay.dart';
 import 'ui/how_to_overlay.dart';
 import 'ui/menu_overlay.dart';
@@ -14,6 +15,13 @@ import 'ui/settings_overlay.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarIconBrightness: Brightness.dark,
+  ));
   runApp(const AlaifApp());
 }
 
@@ -26,18 +34,17 @@ class AlaifApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: buildAlaifTheme(),
       home: Scaffold(
-        body: SafeArea(
-          child: GameWidget<AlaifGame>.controlled(
-            gameFactory: AlaifGame.new,
-            overlayBuilderMap: {
-              'menu': (context, game) => MenuOverlay(game: game),
-              'gameOver': (context, game) => GameOverOverlay(game: game),
-              'paused': (context, game) => PauseOverlay(game: game),
-              'controls': (context, game) => ControlsOverlay(game: game),
-              'howTo': (context, game) => HowToOverlay(game: game),
-              'settings': (context, game) => SettingsOverlay(game: game),
-            },
-          ),
+        backgroundColor: AlaifColors.paper,
+        body: GameWidget<AlaifGame>.controlled(
+          gameFactory: AlaifGame.new,
+          overlayBuilderMap: {
+            'menu': (context, game) => MenuOverlay(game: game),
+            'gameOver': (context, game) => GameOverOverlay(game: game),
+            'paused': (context, game) => PauseOverlay(game: game),
+            'controls': (context, game) => ControlsOverlay(game: game),
+            'howTo': (context, game) => HowToOverlay(game: game),
+            'settings': (context, game) => SettingsOverlay(game: game),
+          },
         ),
       ),
     );
