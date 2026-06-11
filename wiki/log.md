@@ -1,5 +1,8 @@
 # Log
 
+## [2026-06-10] decision | Device review fixes revised: carrier-card slicing + Katibeh
+Second device pass: bare-glyph cuts can't feel good (thin/concave/dotted glyphs ⇒ empty halves; vector outlines and shader masks rejected — they don't change what lands in each half). New approach: glyph baked onto deckled paper card, slice the composite, swipe-angle half-plane cut, swipe-scaled impulse, hit-stop. Font → Katibeh (closest OFL Thuluth-flavored; no genuine open Thuluth exists). Spec [[device-review-1-fixes]] updated; plan rev 2 (11 tasks) supersedes ink-rect tasks 5-9.
+
 ## [2026-06-10] decision | Device review 1 fixes planned
 Device testing (raw/review_1.md) surfaced: not edge-to-edge (SafeArea + white scaffold), overlapping slice SFX (per-drag-update re-slicing before deferred removal), trivial-sliver cuts (fixed horizontal 50% bbox split, swipe angle ignored). Spec [[device-review-1-fixes]]; 10-task plan at plans/2026-06-10-device-review-1-fixes on branch fix/device-review-1. Awaiting user review.
 

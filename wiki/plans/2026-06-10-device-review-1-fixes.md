@@ -4,7 +4,18 @@
 
 **Goal:** Fix three device-review issues in the Alaif Flutter+Flame game — non-full-screen canvas, overlapping slice SFX from duplicate slices, and trivial-sliver letter cuts — while keeping all 110+ existing tests green.
 
-**Architecture:** `AlaifGame` (Flame `FlameGame`) owns gameplay state and is hosted by `GameWidget` inside `MaterialApp`/`Scaffold` in `main.dart`; `LetterComponent`/`SlicedHalf`/`Hud`/`BladeTrail` are Flame components; `GlyphAtlas` pre-renders the 28 Arabic letters to `ui.Image` textures at load time; `AudioService` wraps `flame_audio`. All visuals use tokens from `lib/ui/design_tokens.dart`.
+The third fix supersedes the earlier ink-rect pixel-scan approach: each glyph
+is now baked onto a slightly-rotated warm **paper carrier card** (deckled
+edge, baked shadow, hairline border) as a single composite texture. Hit
+circle and cut geometry derive from the card's known square geometry — no
+pixel scanning. Cuts pass through the card center along the actual swipe
+direction via half-plane `Path` clips; the two halves separate with a
+swipe-scaled impulse, plus a brief hit-stop for impact "juice". The hero
+glyph font also changes from ArefRuqaa to **Katibeh** (OFL 1.1, Google
+Fonts) — a closer open Thuluth-flavored face — and the user's larger spawn
+sizes (196–332) are kept.
+
+**Architecture:** `AlaifGame` (Flame `FlameGame`) owns gameplay state and is hosted by `GameWidget` inside `MaterialApp`/`Scaffold` in `main.dart`; `LetterComponent`/`SlicedHalf`/`Hud`/`BladeTrail` are Flame components; `GlyphAtlas` pre-renders the 28 Arabic letters to composite `ui.Image` paper-card textures (card + glyph baked together) at load time, and exposes the card's square side length (in texture pixels) per letter via `cardSizeFor(letter)`; `LetterComponent` derives its hit circle from that card geometry and applies a small per-spawn random rotation; `SlicedHalf` clips the composite texture with a half-plane `Path` through the card center along the swipe direction and separates perpendicular to the cut with a swipe-scaled impulse; `AudioService` wraps `flame_audio`. All visuals use tokens from `lib/ui/design_tokens.dart`, including the new `AlaifCard` token group.
 
 **Tech Stack:** Flutter 3.38, Flame, flame_audio, flutter_test, flame_test.
 
@@ -838,9 +849,438 @@ cd /Users/iammoo/code/alaif/app && git add lib/game/alaif_game.dart lib/game/hud
 
 ---
 
-## Task 5: Atlas ink-rect scan in `GlyphAtlas`
+## Task 5: Katibeh font swap (replaces ArefRuqaa)
 
-Pixel-scans each rendered glyph texture for its tight ink bounding box, so later tasks can size the hit circle and cut line from actual ink rather than the font-metric box. Falls back to the full image bounds on scan failure or an empty result.
+Vendors the Katibeh OFL font (a closer open Thuluth-flavored face than
+ArefRuqaa for the hero glyphs), points `AlaifFonts.arabic` at it, and removes
+the now-unreferenced ArefRuqaa font files and pubspec entries. This task also
+commits the existing **uncommitted** `pubspec.yaml` version bump to
+`1.0.0+5` (it is unrelated to this change but has no other natural home in
+this plan, so it rides along here).
+
+**Files:**
+- Add: `/Users/iammoo/code/alaif/app/assets/fonts/Katibeh-Regular.ttf`
+- Add: `/Users/iammoo/code/alaif/app/assets/fonts/OFL-Katibeh.txt`
+- Delete: `/Users/iammoo/code/alaif/app/assets/fonts/ArefRuqaa-Regular.ttf`
+- Delete: `/Users/iammoo/code/alaif/app/assets/fonts/ArefRuqaa-Bold.ttf`
+- Delete: `/Users/iammoo/code/alaif/app/assets/fonts/OFL-ArefRuqaa.txt`
+- Modify: `/Users/iammoo/code/alaif/app/pubspec.yaml`
+- Modify: `/Users/iammoo/code/alaif/app/lib/ui/design_tokens.dart`
+- Modify: `/Users/iammoo/code/alaif/app/test/ui/font_assets_test.dart`
+
+### Steps
+
+- [ ] Confirm the uncommitted `pubspec.yaml` version bump is present (it was
+      made by the user outside this plan and will be committed by this task):
+
+```
+cd /Users/iammoo/code/alaif/app && git diff pubspec.yaml
+```
+
+  Expected: a diff showing `version: 1.0.0+5` (vs. an older version on the
+  previous line). If there is no diff, the version is already committed —
+  that's fine, just continue; the final `git add pubspec.yaml` below will
+  then be a no-op for that line.
+
+- [ ] Download the Katibeh font and its license file. Run from
+      `/Users/iammoo/code/alaif/app`:
+
+```
+cd /Users/iammoo/code/alaif/app && curl -fL -o assets/fonts/Katibeh-Regular.ttf https://github.com/google/fonts/raw/main/ofl/katibeh/Katibeh-Regular.ttf && curl -fL -o assets/fonts/OFL-Katibeh.txt https://github.com/google/fonts/raw/main/ofl/katibeh/OFL.txt
+```
+
+- [ ] Verify both files downloaded correctly — the font must be a valid
+      TrueType file and the license file must be non-empty:
+
+```
+cd /Users/iammoo/code/alaif/app && file assets/fonts/Katibeh-Regular.ttf && wc -c assets/fonts/OFL-Katibeh.txt
+```
+
+  Expected: `assets/fonts/Katibeh-Regular.ttf: TrueType Font data` (or similar
+  mentioning "TrueType"), and a non-zero byte count for `OFL-Katibeh.txt`. If
+  `file` reports `HTML document` or similar, the download failed (e.g. GitHub
+  raw URL returned an error page) — re-run the `curl` commands and re-check
+  before proceeding.
+
+- [ ] Write failing tests. Replace the entire contents of
+      `/Users/iammoo/code/alaif/app/test/ui/font_assets_test.dart` with:
+
+```dart
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  const fontFiles = [
+    'assets/fonts/Spectral-Regular.ttf',
+    'assets/fonts/Spectral-Italic.ttf',
+    'assets/fonts/Spectral-Medium.ttf',
+    'assets/fonts/Spectral-MediumItalic.ttf',
+    'assets/fonts/Katibeh-Regular.ttf',
+    'assets/fonts/OFL-Spectral.txt',
+    'assets/fonts/OFL-Katibeh.txt',
+  ];
+
+  test('all vendored font files and licenses exist and are non-empty', () {
+    for (final path in fontFiles) {
+      final file = File(path);
+      expect(file.existsSync(), isTrue, reason: '$path is missing');
+      expect(file.lengthSync(), greaterThan(0), reason: '$path is empty');
+    }
+  });
+
+  test('ArefRuqaa font files are no longer vendored', () {
+    for (final path in [
+      'assets/fonts/ArefRuqaa-Regular.ttf',
+      'assets/fonts/ArefRuqaa-Bold.ttf',
+      'assets/fonts/OFL-ArefRuqaa.txt',
+    ]) {
+      expect(File(path).existsSync(), isFalse,
+          reason: '$path should have been removed with the Katibeh swap');
+    }
+  });
+
+  test('pubspec declares both font families and the Katibeh asset', () {
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    expect(pubspec, contains('family: Spectral'));
+    expect(pubspec, contains('family: Katibeh'));
+    expect(pubspec, contains('assets/fonts/Spectral-MediumItalic.ttf'));
+    expect(pubspec, contains('assets/fonts/Katibeh-Regular.ttf'));
+    expect(pubspec, isNot(contains('ArefRuqaa')));
+  });
+}
+```
+
+- [ ] Run it and confirm it fails:
+
+```
+cd /Users/iammoo/code/alaif/app && flutter test test/ui/font_assets_test.dart 2>&1 | tail -40
+```
+
+  Expected: `pubspec declares both font families and the Katibeh asset` fails
+  (no `family: Katibeh` / `Katibeh-Regular.ttf` in `pubspec.yaml` yet, and it
+  still contains `ArefRuqaa`). The `ArefRuqaa font files are no longer
+  vendored` test should currently FAIL too (the files still exist) — both
+  failures are expected at this point.
+
+- [ ] Implement the minimal fix in `pubspec.yaml`. The current `fonts:` block
+      is:
+
+```yaml
+  fonts:
+    - family: Spectral
+      fonts:
+        - asset: assets/fonts/Spectral-Regular.ttf
+        - asset: assets/fonts/Spectral-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Spectral-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Spectral-MediumItalic.ttf
+          weight: 500
+          style: italic
+    - family: ArefRuqaa
+      fonts:
+        - asset: assets/fonts/ArefRuqaa-Regular.ttf
+        - asset: assets/fonts/ArefRuqaa-Bold.ttf
+          weight: 700
+```
+
+  Change it to:
+
+```yaml
+  fonts:
+    - family: Spectral
+      fonts:
+        - asset: assets/fonts/Spectral-Regular.ttf
+        - asset: assets/fonts/Spectral-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Spectral-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Spectral-MediumItalic.ttf
+          weight: 500
+          style: italic
+    - family: Katibeh
+      fonts:
+        - asset: assets/fonts/Katibeh-Regular.ttf
+```
+
+- [ ] Remove the now-unreferenced ArefRuqaa font files:
+
+```
+cd /Users/iammoo/code/alaif/app && git rm -f assets/fonts/ArefRuqaa-Regular.ttf assets/fonts/ArefRuqaa-Bold.ttf assets/fonts/OFL-ArefRuqaa.txt
+```
+
+- [ ] Implement the minimal fix in `design_tokens.dart`. In
+      `/Users/iammoo/code/alaif/app/lib/ui/design_tokens.dart`, the current
+      `AlaifFonts` class is:
+
+```dart
+abstract class AlaifFonts {
+  static const ui = 'Spectral'; // Latin UI serif
+  static const arabic = 'ArefRuqaa'; // calligraphic hero glyph + Arabic accents
+}
+```
+
+  Change it to:
+
+```dart
+abstract class AlaifFonts {
+  static const ui = 'Spectral'; // Latin UI serif
+  static const arabic = 'Katibeh'; // Thuluth-flavored hero glyph + Arabic accents
+}
+```
+
+- [ ] Run the targeted test again and confirm it passes:
+
+```
+cd /Users/iammoo/code/alaif/app && flutter test test/ui/font_assets_test.dart 2>&1 | tail -20
+```
+
+  Expected: all 3 tests in this file pass.
+
+- [ ] Run the full suite and confirm it is green:
+
+```
+cd /Users/iammoo/code/alaif/app && flutter test 2>&1 | tail -20
+```
+
+  Expected: `All tests passed!`
+
+- [ ] Commit (this also picks up the pre-existing uncommitted
+      `pubspec.yaml` version bump to `1.0.0+5`):
+
+```
+cd /Users/iammoo/code/alaif/app && git add assets/fonts/Katibeh-Regular.ttf assets/fonts/OFL-Katibeh.txt pubspec.yaml lib/ui/design_tokens.dart test/ui/font_assets_test.dart && git commit -m "feat: swap hero glyph font from ArefRuqaa to Katibeh (OFL)"
+```
+
+---
+
+## Task 6: `AlaifCard` design tokens
+
+Adds the token group for the paper carrier card: a slightly brighter paper
+fill, hairline edge, deckle amplitude, corner radius, padding factor (glyph
+extent → card side), and baked shadow values. This task also commits the
+pre-existing **uncommitted** spawn-size change in `design_tokens.dart`
+(`spawnSizeMin: 196.0`, `spawnSizeMax: 332.0`) — both are tokens-file changes
+and ride together.
+
+**Files:**
+- Modify: `/Users/iammoo/code/alaif/app/lib/ui/design_tokens.dart`
+- Modify: `/Users/iammoo/code/alaif/app/test/ui/design_tokens_test.dart` (create if it does not exist)
+
+### Steps
+
+- [ ] Confirm the uncommitted spawn-size change is present:
+
+```
+cd /Users/iammoo/code/alaif/app && git diff lib/ui/design_tokens.dart
+```
+
+  Expected: a diff showing `spawnSizeMin = 196.0` and `spawnSizeMax = 332.0`
+  (vs. smaller previous values). If there is no diff, the values are already
+  committed at 196/332 — that's fine, continue; the relevant assertions below
+  will already pass and the final `git add` will be a no-op for those lines.
+
+- [ ] Check whether `/Users/iammoo/code/alaif/app/test/ui/design_tokens_test.dart`
+      already exists:
+
+```
+cd /Users/iammoo/code/alaif/app && ls test/ui/ | grep -i design_tokens || echo "NOT FOUND"
+```
+
+- [ ] Write failing tests. If the file does **not** exist, create
+      `/Users/iammoo/code/alaif/app/test/ui/design_tokens_test.dart` with
+      exactly the following contents. If it **does** exist, read it first and
+      add these tests inside its existing `void main() { ... }` (do not
+      duplicate any existing `import` lines or `main()` wrapper — merge the
+      `test(...)` blocks below into the existing file's `main()`):
+
+```dart
+import 'package:alaif/ui/design_tokens.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  test('spawn size tokens match the larger device-review-1 spawn sizes', () {
+    expect(AlaifGlyph.spawnSizeMin, 196.0);
+    expect(AlaifGlyph.spawnSizeMax, 332.0);
+    expect(AlaifGlyph.spawnSizeMax, greaterThan(AlaifGlyph.spawnSizeMin));
+  });
+
+  test('AlaifCard exposes paper-carrier-card tokens', () {
+    // Card fill is a brighter paper than the canvas background, so the card
+    // reads as a distinct surface.
+    expect(AlaifCard.color, isA<Color>());
+    expect(AlaifCard.color, isNot(AlaifColors.paper));
+
+    // Edge hairline reuses the shared hairline ink tone.
+    expect(AlaifCard.edgeColor, AlaifColors.hairline);
+
+    // Card side = glyph max extent * paddingFactor; must be > 1 (the card is
+    // larger than the bare glyph).
+    expect(AlaifCard.paddingFactor, greaterThan(1.0));
+
+    // Deckled-edge wobble amplitude, in texture pixels.
+    expect(AlaifCard.deckleAmplitude, greaterThan(0));
+
+    // Corner radius for the card's rounded-rect base shape.
+    expect(AlaifCard.cornerRadius, greaterThan(0));
+
+    // Baked shadow values (reuses the same shape as AlaifGlyph's glyph
+    // shadow, but for the card itself).
+    expect(AlaifCard.shadowColor, isA<Color>());
+    expect(AlaifCard.shadowBlur, greaterThan(0));
+    expect(AlaifCard.shadowOffsetY, greaterThan(0));
+
+    // Hit-circle radius factor: the inscribed-circle radius of the card is
+    // (side / 2) * hitRadiusFactor, slightly generous for forgiving slicing.
+    expect(AlaifCard.hitRadiusFactor, greaterThan(0));
+    expect(AlaifCard.hitRadiusFactor, lessThanOrEqualTo(1.0));
+  });
+}
+```
+
+- [ ] Run it and confirm it fails:
+
+```
+cd /Users/iammoo/code/alaif/app && flutter test test/ui/design_tokens_test.dart 2>&1 | tail -40
+```
+
+  Expected: compile errors — `AlaifCard` does not exist yet.
+
+- [ ] Implement the minimal fix. In
+      `/Users/iammoo/code/alaif/app/lib/ui/design_tokens.dart`, the current
+      `AlaifGlyph` class (the last class in the file) is:
+
+```dart
+// ---------------------------------------------------------------------------
+// GLYPH ATLAS CONFIG  (GlyphAtlas — pre-rendered letter textures)
+// ---------------------------------------------------------------------------
+abstract class AlaifGlyph {
+  /// Font size used when pre-rendering each letter to a ui.Image texture.
+  /// Render large for crispness; scale down per-spawn in the component.
+  static const renderFontSize = 220.0;
+
+  /// Texture padding so the gradient + faint shadow aren't clipped.
+  static const texturePadding = 24.0;
+
+  /// On-screen letter size range (diameter-ish) at spawn.
+  static const spawnSizeMin = 196.0;
+  static const spawnSizeMax = 332.0;
+
+  /// Soft drop shadow baked into the texture (cheap depth on paper).
+  static const shadowBlur = 3.0;
+  static const shadowOffsetY = 2.0;
+  static const shadowColor = Color(0x2E1B1712); // ~0.18 ink
+}
+```
+
+  Change it to (adds the new `AlaifCard` class after `AlaifGlyph`; the
+  `AlaifGlyph` class itself is unchanged — `spawnSizeMin`/`spawnSizeMax`
+  values 196.0/332.0 are already correct from the uncommitted change):
+
+```dart
+// ---------------------------------------------------------------------------
+// GLYPH ATLAS CONFIG  (GlyphAtlas — pre-rendered letter textures)
+// ---------------------------------------------------------------------------
+abstract class AlaifGlyph {
+  /// Font size used when pre-rendering each letter to a ui.Image texture.
+  /// Render large for crispness; scale down per-spawn in the component.
+  static const renderFontSize = 220.0;
+
+  /// Texture padding so the gradient + faint shadow aren't clipped.
+  static const texturePadding = 24.0;
+
+  /// On-screen letter size range (diameter-ish) at spawn.
+  static const spawnSizeMin = 196.0;
+  static const spawnSizeMax = 332.0;
+
+  /// Soft drop shadow baked into the texture (cheap depth on paper).
+  static const shadowBlur = 3.0;
+  static const shadowOffsetY = 2.0;
+  static const shadowColor = Color(0x2E1B1712); // ~0.18 ink
+}
+
+// ---------------------------------------------------------------------------
+// CARRIER CARD  (GlyphAtlas — paper card baked behind each glyph)
+// ---------------------------------------------------------------------------
+/// Tokens for the paper "carrier card" each glyph is baked onto (device
+/// review 1, decision 3): a slightly-rotated warm paper card with a deckled
+/// edge, baked shadow, and hairline border. The card is square; its side is
+/// `glyphMaxExtent * paddingFactor`. Hit circle and cut geometry derive from
+/// this known square geometry — no pixel scanning.
+abstract class AlaifCard {
+  /// Card fill — slightly brighter than the canvas paper so cards read as
+  /// distinct surfaces sitting on top of the background.
+  static const color = Color(0xFFF7F1E3);
+
+  /// Hairline border stroked around the card edge.
+  static const edgeColor = AlaifColors.hairline;
+
+  /// Card side = glyph max extent (width or height of the rendered glyph,
+  /// including its own texture padding) * this factor. > 1 so the card is
+  /// visibly larger than the bare glyph.
+  static const paddingFactor = 1.35;
+
+  /// Peak outward/inward wobble of the deckled edge, in texture pixels.
+  /// The deckle is generated deterministically per letter (seeded by the
+  /// letter's position in [GlyphAtlas.letters]) so it is stable across loads.
+  static const deckleAmplitude = 6.0;
+
+  /// Number of wobble segments per card edge (deckle "teeth" per side).
+  static const deckleSegmentsPerEdge = 5;
+
+  /// Corner radius of the card's base rounded-rect shape (before deckling).
+  static const cornerRadius = 18.0;
+
+  /// Soft baked shadow under the card (cheap depth on paper).
+  static const shadowColor = Color(0x331B1712); // ~0.20 ink
+  static const shadowBlur = 10.0;
+  static const shadowOffsetY = 6.0;
+
+  /// The component's hit-circle radius is
+  /// `(cardSide * componentScale / 2) * hitRadiusFactor` — the inscribed
+  /// circle of the square card, scaled slightly for a forgiving hit area.
+  /// 1.0 == exactly the inscribed circle; values > 1.0 would extend past the
+  /// card's straight edges, so this stays <= 1.0 ("slightly generous" means
+  /// close to 1.0, not over it).
+  static const hitRadiusFactor = 0.92;
+}
+```
+
+- [ ] Run the targeted test again and confirm it passes:
+
+```
+cd /Users/iammoo/code/alaif/app && flutter test test/ui/design_tokens_test.dart 2>&1 | tail -20
+```
+
+  Expected: both tests in this file pass.
+
+- [ ] Run the full suite and confirm it is green:
+
+```
+cd /Users/iammoo/code/alaif/app && flutter test 2>&1 | tail -20
+```
+
+  Expected: `All tests passed!`
+
+- [ ] Commit (this also picks up the pre-existing uncommitted spawn-size
+      change to `design_tokens.dart`):
+
+```
+cd /Users/iammoo/code/alaif/app && git add lib/ui/design_tokens.dart test/ui/design_tokens_test.dart && git commit -m "feat: add AlaifCard paper-carrier-card design tokens"
+```
+
+---
+
+## Task 7: Paper-card composite rendering in `GlyphAtlas`
+
+Each glyph texture becomes a single composite `ui.Image`: a deckled-edge
+paper card (with baked shadow and hairline border) drawn first, then the
+existing two-pass glyph (shadow + gradient) centered on top. The composite
+image is square — its side is the card side — so later tasks can derive hit
+circle and cut geometry purely from `image.width`/`image.height` (exposed via
+`cardSizeFor`), with no pixel scanning.
 
 **Files:**
 - Modify: `/Users/iammoo/code/alaif/app/lib/core/glyph_atlas.dart`
@@ -848,11 +1288,24 @@ Pixel-scans each rendered glyph texture for its tight ink bounding box, so later
 
 ### Steps
 
-- [ ] Write failing tests. Open `/Users/iammoo/code/alaif/app/test/core/glyph_atlas_test.dart` and replace its entire contents with:
+- [ ] Read the current atlas test file to preserve its existing tests:
+
+```
+cd /Users/iammoo/code/alaif/app && cat test/core/glyph_atlas_test.dart
+```
+
+  (At this point in the plan it should contain the original tests: "renders a
+  single glyph to a non-empty image", "glyph texture includes the spec
+  padding on both axes", "glyph pixels are ink, not the old gold gradient",
+  "atlas exposes all 28 letters", "load makes every letter available",
+  "imageFor throws before load". If any ink-rect-related tests from a
+  previous draft of this plan exist — e.g. `scanInkRect`, `inkRectFor` — they
+  do not exist in this codebase; do not add them.)
+
+- [ ] Write failing tests. Replace the entire contents of
+      `/Users/iammoo/code/alaif/app/test/core/glyph_atlas_test.dart` with:
 
 ```dart
-import 'dart:ui' as ui;
-
 import 'package:alaif/core/glyph_atlas.dart';
 import 'package:alaif/ui/design_tokens.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -860,18 +1313,21 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('renders a single glyph to a non-empty image', () async {
+  test('renders a single glyph card to a non-empty square image', () async {
     final image = await GlyphAtlas.renderGlyph('ب');
     expect(image.width, greaterThan(0));
     expect(image.height, greaterThan(0));
+    // The carrier card is square.
+    expect(image.width, image.height);
   });
 
-  test('glyph texture includes the spec padding on both axes', () async {
+  test('glyph card includes the spec padding plus card padding factor',
+      () async {
     final image = await GlyphAtlas.renderGlyph('ب');
-    // Texture = glyph box + 2 * texturePadding; the glyph itself is at least
-    // a few px wide, so the image must clearly exceed the padding alone.
-    expect(image.width, greaterThan((AlaifGlyph.texturePadding * 2).toInt()));
-    expect(image.height, greaterThan((AlaifGlyph.texturePadding * 2).toInt()));
+    // Card side = glyph box (>= 2*texturePadding) * paddingFactor, so the
+    // composite image must clearly exceed the bare texture padding alone.
+    expect(image.width,
+        greaterThan((AlaifGlyph.texturePadding * 2 * AlaifCard.paddingFactor).toInt()));
   });
 
   test('glyph pixels are ink, not the old gold gradient', () async {
@@ -888,6 +1344,31 @@ void main() {
     }
     expect(inkFound, isTrue, reason: 'expected near-black ink pixels');
     expect(goldFound, isFalse, reason: 'old gold gradient should be gone');
+  });
+
+  test('glyph card includes the carrier-card paper fill color', () async {
+    final image = await GlyphAtlas.renderGlyph('ب');
+    final data = (await image.toByteData())!;
+    var cardFound = false;
+    const cardColor = AlaifCard.color;
+    final cardR = (cardColor.r * 255).round();
+    final cardG = (cardColor.g * 255).round();
+    final cardB = (cardColor.b * 255).round();
+    for (var i = 0; i < data.lengthInBytes; i += 4) {
+      final r = data.getUint8(i);
+      final g = data.getUint8(i + 1);
+      final b = data.getUint8(i + 2);
+      final a = data.getUint8(i + 3);
+      if (a > 200 &&
+          (r - cardR).abs() <= 2 &&
+          (g - cardG).abs() <= 2 &&
+          (b - cardB).abs() <= 2) {
+        cardFound = true;
+        break;
+      }
+    }
+    expect(cardFound, isTrue,
+        reason: 'expected AlaifCard.color paper-fill pixels somewhere on the card');
   });
 
   test('atlas exposes all 28 letters', () {
@@ -907,58 +1388,31 @@ void main() {
     expect(() => GlyphAtlas().imageFor('ب'), throwsStateError);
   });
 
-  test('scanInkRect finds a tight, non-empty rect strictly inside a real glyph image', () async {
-    final image = await GlyphAtlas.renderGlyph('ب');
-    final rect = await GlyphAtlas.scanInkRect(image);
-
-    expect(rect.width, greaterThan(0));
-    expect(rect.height, greaterThan(0));
-    // The ink rect must be strictly smaller than the full padded texture
-    // (padding + shadow + gradient surround the glyph on all sides).
-    expect(rect.width, lessThan(image.width.toDouble()));
-    expect(rect.height, lessThan(image.height.toDouble()));
-    expect(rect.left, greaterThanOrEqualTo(0));
-    expect(rect.top, greaterThanOrEqualTo(0));
-    expect(rect.right, lessThanOrEqualTo(image.width.toDouble()));
-    expect(rect.bottom, lessThanOrEqualTo(image.height.toDouble()));
-  });
-
-  test('scanInkRect falls back to full image bounds for a fully transparent image', () async {
-    final recorder = ui.PictureRecorder();
-    ui.Canvas(recorder); // draw nothing -> fully transparent 10x20 image
-    final image = await recorder.endRecording().toImage(10, 20);
-
-    final rect = await GlyphAtlas.scanInkRect(image);
-    expect(rect, ui.Rect.fromLTWH(0, 0, 10, 20));
-  });
-
-  test('scanInkRect finds the known ink region of a synthetic image', () async {
-    // 20x20 fully transparent image with a 4x4 fully-opaque white square at
-    // (8,8)-(12,12).
-    final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
-    canvas.drawRect(
-      const ui.Rect.fromLTWH(8, 8, 4, 4),
-      ui.Paint()..color = const ui.Color(0xFFFFFFFF),
-    );
-    final image = await recorder.endRecording().toImage(20, 20);
-
-    final rect = await GlyphAtlas.scanInkRect(image);
-    expect(rect, ui.Rect.fromLTWH(8, 8, 4, 4));
-  });
-
-  test('inkRectFor returns a rect for every letter after load', () async {
+  test('cardSizeFor returns the square card side for every letter after load',
+      () async {
     final atlas = GlyphAtlas();
     await atlas.load();
     for (final letter in GlyphAtlas.letters) {
-      final rect = atlas.inkRectFor(letter);
-      expect(rect.width, greaterThan(0));
-      expect(rect.height, greaterThan(0));
+      final side = atlas.cardSizeFor(letter);
+      expect(side, greaterThan(0));
+      expect(side, atlas.imageFor(letter).width.toDouble());
+      expect(side, atlas.imageFor(letter).height.toDouble());
     }
   });
 
-  test('inkRectFor throws before load', () {
-    expect(() => GlyphAtlas().inkRectFor('ب'), throwsStateError);
+  test('cardSizeFor throws before load', () {
+    expect(() => GlyphAtlas().cardSizeFor('ب'), throwsStateError);
+  });
+
+  test('renderGlyph is deterministic for the same letter (stable deckle seed)',
+      () async {
+    final a = await GlyphAtlas.renderGlyph('ب');
+    final b = await GlyphAtlas.renderGlyph('ب');
+    expect(a.width, b.width);
+    expect(a.height, b.height);
+    final dataA = (await a.toByteData())!;
+    final dataB = (await b.toByteData())!;
+    expect(dataA.buffer.asUint8List(), dataB.buffer.asUint8List());
   });
 }
 ```
@@ -966,32 +1420,34 @@ void main() {
 - [ ] Run it and confirm it fails:
 
 ```
-cd /Users/iammoo/code/alaif/app && flutter test test/core/glyph_atlas_test.dart 2>&1 | tail -40
+cd /Users/iammoo/code/alaif/app && flutter test test/core/glyph_atlas_test.dart 2>&1 | tail -50
 ```
 
-  Expected: compile errors — `GlyphAtlas.scanInkRect` and `inkRectFor` don't exist.
+  Expected: compile errors / failures — `cardSizeFor` doesn't exist, the
+  composite image isn't square yet, and no `AlaifCard.color` pixels are
+  present.
 
-- [ ] Implement the minimal fix. Replace the entire contents of `/Users/iammoo/code/alaif/app/lib/core/glyph_atlas.dart` with:
+- [ ] Implement the minimal fix. Replace the entire contents of
+      `/Users/iammoo/code/alaif/app/lib/core/glyph_atlas.dart` with:
 
 ```dart
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
 
 import '../ui/design_tokens.dart';
 
-/// Pre-renders the 28 Arabic letters (isolated forms) to textures at load.
+/// Pre-renders the 28 Arabic letters (isolated forms) to composite paper-card
+/// textures at load.
 ///
-/// Ink & Paper: glyphs render in ArefRuqaa at [AlaifGlyph.renderFontSize]
-/// with the vertical ink gradient [AlaifGradients.glyph] and a soft baked
-/// drop shadow, padded by [AlaifGlyph.texturePadding] so nothing clips.
-///
-/// At load time, each glyph image is also pixel-scanned for its tight "ink
-/// rect" — the bounding box of opaque-enough pixels — so [LetterComponent]
-/// can size its hit circle and cut line from actual ink rather than the
-/// font-metric box (which is unevenly filled for Arabic glyphs).
+/// Ink & Paper, device review 1 (decision 3): each letter is baked onto a
+/// square "carrier card" — a deckled-edge warm-paper rounded rect with a
+/// baked soft shadow and hairline border — with the glyph (Katibeh, two-pass
+/// shadow + vertical ink gradient) centered on top. The composite texture is
+/// square; its side is the card side, exposed via [cardSizeFor]. Hit circle
+/// and cut geometry are derived from this known square geometry by
+/// [LetterComponent] and [SlicedHalf] — no pixel scanning.
 class GlyphAtlas {
   static const letters = [
     'ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر',
@@ -999,13 +1455,7 @@ class GlyphAtlas {
     'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و', 'ي',
   ];
 
-  /// Alpha (0-255) above which a pixel counts as "ink" for [scanInkRect].
-  /// The baked shadow ([AlaifGlyph.shadowColor]) has alpha ~46, well below
-  /// this; the glyph fill is fully opaque (alpha 255).
-  static const inkAlphaThreshold = 128;
-
   final Map<String, ui.Image> _images = {};
-  final Map<String, ui.Rect> _inkRects = {};
 
   ui.Image imageFor(String letter) {
     final image = _images[letter];
@@ -1015,15 +1465,9 @@ class GlyphAtlas {
     return image;
   }
 
-  /// The tight ink bounding box for [letter], in texture-pixel coordinates
-  /// relative to the top-left of [imageFor]'s image.
-  ui.Rect inkRectFor(String letter) {
-    final rect = _inkRects[letter];
-    if (rect == null) {
-      throw StateError('GlyphAtlas.load() must complete before inkRectFor("$letter")');
-    }
-    return rect;
-  }
+  /// The square carrier card's side length, in texture pixels — equal to
+  /// both `imageFor(letter).width` and `imageFor(letter).height`.
+  double cardSizeFor(String letter) => imageFor(letter).width.toDouble();
 
   Future<void> load({
     double fontSize = AlaifGlyph.renderFontSize,
@@ -1031,21 +1475,21 @@ class GlyphAtlas {
   }) async {
     if (_images.isNotEmpty) return; // idempotent — images are native resources
     for (final letter in letters) {
-      final image =
+      _images[letter] =
           await renderGlyph(letter, fontSize: fontSize, fontFamily: fontFamily);
-      _images[letter] = image;
-      _inkRects[letter] = await scanInkRect(image);
     }
   }
 
+  /// Renders [letter] as a composite paper-card texture: deckled card (with
+  /// baked shadow + hairline border) first, then the two-pass glyph
+  /// (shadow + ink gradient) centered on top. The result is square.
   static Future<ui.Image> renderGlyph(
     String letter, {
     double fontSize = AlaifGlyph.renderFontSize,
     String fontFamily = AlaifFonts.arabic,
   }) async {
-    final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
     const pad = AlaifGlyph.texturePadding;
+
     // Layout once without paint to measure the true glyph box.
     final measure = TextPainter(
       text: TextSpan(
@@ -1055,6 +1499,48 @@ class GlyphAtlas {
       textDirection: TextDirection.rtl,
     )..layout();
     final glyphHeight = math.max(measure.height, fontSize);
+    final glyphWidth = math.max(measure.width, 1);
+
+    // The bare glyph "box" (glyph + texture padding on all sides), as in the
+    // pre-card atlas. The card is this box's longest edge, scaled up.
+    final glyphBoxWidth = glyphWidth + pad * 2;
+    final glyphBoxHeight = glyphHeight + pad * 2;
+    final glyphMaxExtent = math.max(glyphBoxWidth, glyphBoxHeight);
+
+    // Card side, rounded up to a whole pixel so the texture has no
+    // fractional-pixel edge.
+    final cardSide = (glyphMaxExtent * AlaifCard.paddingFactor).ceil().toDouble();
+
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+
+    // --- Carrier card ---------------------------------------------------
+    final cardPath = _cardPath(letter, cardSide);
+
+    // Baked shadow under the card.
+    canvas.drawPath(
+      cardPath.shift(const Offset(0, AlaifCard.shadowOffsetY)),
+      Paint()
+        ..color = AlaifCard.shadowColor
+        ..maskFilter =
+            const ui.MaskFilter.blur(ui.BlurStyle.normal, AlaifCard.shadowBlur),
+    );
+
+    // Paper fill.
+    canvas.drawPath(cardPath, Paint()..color = AlaifCard.color);
+
+    // Hairline edge.
+    canvas.drawPath(
+      cardPath,
+      Paint()
+        ..color = AlaifCard.edgeColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0,
+    );
+
+    // --- Glyph, centered on the card -------------------------------------
+    final glyphOriginX = (cardSide - glyphWidth) / 2;
+    final glyphOriginY = (cardSide - glyphHeight) / 2;
 
     // Pass 1 — soft baked shadow (cheap depth on paper).
     final shadowPaint = Paint()
@@ -1074,13 +1560,13 @@ class GlyphAtlas {
     )..layout();
     shadowPainter.paint(
       canvas,
-      const Offset(pad, pad + AlaifGlyph.shadowOffsetY),
+      Offset(glyphOriginX, glyphOriginY + AlaifGlyph.shadowOffsetY),
     );
 
     // Pass 2 — the ink glyph with its vertical gradient.
     final foreground = Paint()
       ..shader = AlaifGradients.glyph.createShader(
-        Rect.fromLTWH(pad, pad, math.max(measure.width, 1), glyphHeight),
+        Rect.fromLTWH(glyphOriginX, glyphOriginY, glyphWidth, glyphHeight),
       );
     final painter = TextPainter(
       text: TextSpan(
@@ -1093,58 +1579,85 @@ class GlyphAtlas {
       ),
       textDirection: TextDirection.rtl,
     )..layout();
-    painter.paint(canvas, const Offset(pad, pad));
+    painter.paint(canvas, Offset(glyphOriginX, glyphOriginY));
 
-    final width = math.max(1, (painter.width + pad * 2).ceil());
-    final height = math.max(1, (painter.height + pad * 2).ceil());
-    return recorder.endRecording().toImage(width, height);
+    final side = math.max(1, cardSide.ceil());
+    return recorder.endRecording().toImage(side, side);
   }
 
-  /// Scans [image] for the tight bounding box of pixels with alpha greater
-  /// than [inkAlphaThreshold]. Falls back to the full image bounds
-  /// (`Rect.fromLTWH(0, 0, image.width, image.height)`) if the byte data is
-  /// unavailable or no pixel exceeds the threshold.
-  static Future<ui.Rect> scanInkRect(
-    ui.Image image, {
-    int alphaThreshold = inkAlphaThreshold,
-  }) async {
-    final fallback =
-        ui.Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
-    final ByteData? data;
-    try {
-      data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-    } catch (_) {
-      return fallback;
-    }
-    if (data == null) return fallback;
+  /// Builds the deckled-edge rounded-rect `Path` for a card of side
+  /// [cardSide], seeded deterministically from [letter]'s position in
+  /// [letters] so the wobble is stable across loads (and identical renders
+  /// of the same letter produce byte-identical images).
+  static ui.Path _cardPath(String letter, double cardSide) {
+    final seed = letters.indexOf(letter);
+    final random = math.Random(seed >= 0 ? seed : letter.hashCode);
 
-    final width = image.width;
-    final height = image.height;
-    var minX = width;
-    var minY = height;
-    var maxX = -1;
-    var maxY = -1;
+    const segments = AlaifCard.deckleSegmentsPerEdge;
+    const amplitude = AlaifCard.deckleAmplitude;
+    const radius = AlaifCard.cornerRadius;
 
-    for (var y = 0; y < height; y++) {
-      for (var x = 0; x < width; x++) {
-        final alphaIndex = (y * width + x) * 4 + 3;
-        if (data.getUint8(alphaIndex) > alphaThreshold) {
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (y < minY) minY = y;
-          if (y > maxY) maxY = y;
-        }
-      }
-    }
-
-    if (maxX < minX || maxY < minY) return fallback; // nothing above threshold
-
-    return ui.Rect.fromLTRB(
-      minX.toDouble(),
-      minY.toDouble(),
-      (maxX + 1).toDouble(),
-      (maxY + 1).toDouble(),
+    // Base rounded rect, inset so the deckle wobble never exceeds the
+    // texture bounds.
+    final base = Rect.fromLTWH(
+      amplitude,
+      amplitude,
+      cardSide - amplitude * 2,
+      cardSide - amplitude * 2,
     );
+
+    final path = ui.Path();
+
+    // Walk each edge in `segments` steps, perturbing each interior vertex
+    // perpendicular to the edge by a random amount in [-amplitude, amplitude].
+    // Corners (the rounded-rect corners) are left unperturbed so the
+    // rounding reads cleanly.
+    final corners = [
+      base.topLeft + Offset(radius, 0),
+      base.topRight + Offset(-radius, 0),
+      base.topRight + Offset(0, radius),
+      base.bottomRight + Offset(0, -radius),
+      base.bottomRight + Offset(-radius, 0),
+      base.bottomLeft + Offset(radius, 0),
+      base.bottomLeft + Offset(0, -radius),
+      base.topLeft + Offset(0, radius),
+    ];
+
+    void deckledEdge(Offset from, Offset to) {
+      final dx = to.dx - from.dx;
+      final dy = to.dy - from.dy;
+      final length = math.sqrt(dx * dx + dy * dy);
+      if (length == 0) {
+        path.lineTo(to.dx, to.dy);
+        return;
+      }
+      // Unit normal (perpendicular to the edge).
+      final nx = -dy / length;
+      final ny = dx / length;
+      for (var i = 1; i < segments; i++) {
+        final t = i / segments;
+        final px = from.dx + dx * t;
+        final py = from.dy + dy * t;
+        final wobble = (random.nextDouble() * 2 - 1) * amplitude;
+        path.lineTo(px + nx * wobble, py + ny * wobble);
+      }
+      path.lineTo(to.dx, to.dy);
+    }
+
+    // Start at the first corner, draw deckled edges between corner pairs,
+    // and arc around each rounded corner.
+    path.moveTo(corners[0].dx, corners[0].dy);
+    deckledEdge(corners[0], corners[1]);
+    path.arcToPoint(corners[2], radius: const Radius.circular(radius));
+    deckledEdge(corners[2], corners[3]);
+    path.arcToPoint(corners[4], radius: const Radius.circular(radius));
+    deckledEdge(corners[4], corners[5]);
+    path.arcToPoint(corners[6], radius: const Radius.circular(radius));
+    deckledEdge(corners[6], corners[7]);
+    path.arcToPoint(corners[0], radius: const Radius.circular(radius));
+    path.close();
+
+    return path;
   }
 }
 ```
@@ -1152,7 +1665,7 @@ class GlyphAtlas {
 - [ ] Run the targeted test again and confirm it passes:
 
 ```
-cd /Users/iammoo/code/alaif/app && flutter test test/core/glyph_atlas_test.dart 2>&1 | tail -40
+cd /Users/iammoo/code/alaif/app && flutter test test/core/glyph_atlas_test.dart 2>&1 | tail -50
 ```
 
   Expected: all tests in this file pass.
@@ -1163,19 +1676,28 @@ cd /Users/iammoo/code/alaif/app && flutter test test/core/glyph_atlas_test.dart 
 cd /Users/iammoo/code/alaif/app && flutter test 2>&1 | tail -20
 ```
 
-  Expected: `All tests passed!`
+  Expected: `All tests passed!`. Note: `test/game/components_test.dart` and
+  `test/game/alaif_game_test.dart` use `testImage()`, a synthetic
+  in-test-only image, not `GlyphAtlas.renderGlyph` — they are unaffected by
+  this task.
 
 - [ ] Commit:
 
 ```
-cd /Users/iammoo/code/alaif/app && git add lib/core/glyph_atlas.dart test/core/glyph_atlas_test.dart && git commit -m "feat: scan glyph textures for tight ink rects in GlyphAtlas"
+cd /Users/iammoo/code/alaif/app && git add lib/core/glyph_atlas.dart test/core/glyph_atlas_test.dart && git commit -m "feat: bake each glyph onto a deckled paper carrier card in GlyphAtlas"
 ```
 
 ---
 
-## Task 6: Ink-aware hit circle and `inkCenter` on `LetterComponent`
+## Task 8: Card-based hit circle + per-spawn rotation on `LetterComponent`
 
-`LetterComponent` accepts an optional `inkRect` (texture-pixel coordinates, from `GlyphAtlas.inkRectFor`). It scales that rect into local component coordinates and derives `hitRadius` and `inkCenter` from it. When `inkRect` is omitted, behavior matches today exactly (full-image bounds).
+`LetterComponent.hitRadius` now derives from the component's on-screen size
+(== the square carrier card scaled to `targetSize`) via
+`AlaifCard.hitRadiusFactor`, instead of the old `size.x / 2`. Each spawned
+letter also gets a small random rotation (`±0.12` rad) applied once at
+construction, via an injectable `Random` (matching the existing
+`Spawner`/`AlaifGame` pattern), so cards feel tossed rather than perfectly
+axis-aligned.
 
 **Files:**
 - Modify: `/Users/iammoo/code/alaif/app/lib/game/letter_component.dart`
@@ -1183,7 +1705,101 @@ cd /Users/iammoo/code/alaif/app && git add lib/core/glyph_atlas.dart test/core/g
 
 ### Steps
 
-- [ ] Write failing tests. Open `/Users/iammoo/code/alaif/app/test/game/components_test.dart`. The current top of the file is:
+- [ ] Write failing tests. Open
+      `/Users/iammoo/code/alaif/app/test/game/components_test.dart`. The
+      current relevant tests are:
+
+```dart
+  test('letter hit radius derives from its scaled on-screen size', () async {
+    final image = await testImage(width: 80, height: 80);
+    final letter = LetterComponent(
+      letter: 'ب',
+      image: image,
+      motion: ArcMotion(start: Vector2.zero(), velocity: Vector2.zero()),
+      targetSize: 80,
+    );
+    expect(letter.hitRadius, 40);
+  });
+
+  test('letter scales its texture down to targetSize, keeping aspect', () async {
+    final image = await testImage(width: 100, height: 200);
+    final letter = LetterComponent(
+      letter: 'ب',
+      image: image,
+      motion: ArcMotion(start: Vector2.zero(), velocity: Vector2.zero()),
+      targetSize: 100,
+    );
+    expect(letter.size, Vector2(50, 100)); // longest edge == targetSize
+    expect(letter.hitRadius, 25);
+  });
+```
+
+  Replace these two tests with the following (updated `hitRadius`
+  expectations using `AlaifCard.hitRadiusFactor`, plus new tests for
+  rotation):
+
+```dart
+  test('letter hit radius derives from its scaled on-screen size via AlaifCard.hitRadiusFactor', () async {
+    final image = await testImage(width: 80, height: 80);
+    final letter = LetterComponent(
+      letter: 'ب',
+      image: image,
+      motion: ArcMotion(start: Vector2.zero(), velocity: Vector2.zero()),
+      targetSize: 80,
+    );
+    // size is (80, 80); hitRadius = max(size.x, size.y) / 2 * hitRadiusFactor.
+    expect(letter.hitRadius, 80 / 2 * AlaifCard.hitRadiusFactor);
+  });
+
+  test('letter scales its texture down to targetSize, keeping aspect, and hitRadius follows', () async {
+    final image = await testImage(width: 100, height: 200);
+    final letter = LetterComponent(
+      letter: 'ب',
+      image: image,
+      motion: ArcMotion(start: Vector2.zero(), velocity: Vector2.zero()),
+      targetSize: 100,
+    );
+    expect(letter.size, Vector2(50, 100)); // longest edge == targetSize
+    // hitRadius = max(size.x, size.y) / 2 * hitRadiusFactor = max(50,100)/2 * factor.
+    expect(letter.hitRadius, 100 / 2 * AlaifCard.hitRadiusFactor);
+  });
+
+  test('letter with no random source gets zero extra rotation', () async {
+    final image = await testImage(width: 80, height: 80);
+    final letter = LetterComponent(
+      letter: 'ب',
+      image: image,
+      motion: ArcMotion(start: Vector2.zero(), velocity: Vector2.zero()),
+      targetSize: 80,
+    );
+    expect(letter.angle, 0);
+  });
+
+  test('letter with a seeded random source gets a small fixed rotation in [-0.12, 0.12] rad', () async {
+    final image = await testImage(width: 80, height: 80);
+    final letter = LetterComponent(
+      letter: 'ب',
+      image: image,
+      motion: ArcMotion(start: Vector2.zero(), velocity: Vector2.zero()),
+      targetSize: 80,
+      random: Random(42),
+    );
+    expect(letter.angle, greaterThanOrEqualTo(-0.12));
+    expect(letter.angle, lessThanOrEqualTo(0.12));
+    // Same seed -> same rotation (deterministic).
+    final again = LetterComponent(
+      letter: 'ب',
+      image: image,
+      motion: ArcMotion(start: Vector2.zero(), velocity: Vector2.zero()),
+      targetSize: 80,
+      random: Random(42),
+    );
+    expect(again.angle, letter.angle);
+  });
+```
+
+  Add the `dart:math` import for `Random` at the top of the file. The current
+  top of the file is:
 
 ```dart
 import 'dart:ui' as ui;
@@ -1197,74 +1813,37 @@ import 'package:flame/components.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-Future<ui.Image> testImage({int width = 40, int height = 60}) {
-  final recorder = ui.PictureRecorder();
-  ui.Canvas(recorder).drawRect(
-    ui.Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
-    ui.Paint()..color = const ui.Color(0xFFFFFFFF),
-  );
-  return recorder.endRecording().toImage(width, height);
-}
 ```
 
-  Leave that unchanged. After the existing test `'letter defaults to the max spawn size from the tokens'` (and its closing `});`), add the following new tests:
+  Change it to:
 
 ```dart
-  test('letter without an inkRect falls back to full-image hit circle and centered inkCenter', () async {
-    final image = await testImage(width: 100, height: 100);
-    final letter = LetterComponent(
-      letter: 'ب',
-      image: image,
-      motion: ArcMotion(start: Vector2.zero(), velocity: Vector2.zero()),
-      targetSize: 100,
-    );
-    // No inkRect supplied -> behaves exactly as before (full bbox).
-    expect(letter.hitRadius, 50);
-    expect(letter.inkCenter, Vector2(50, 50));
-  });
+import 'dart:math';
+import 'dart:ui' as ui;
 
-  test('letter with an off-center inkRect derives hitRadius and inkCenter from it', () async {
-    final image = await testImage(width: 100, height: 100);
-    final letter = LetterComponent(
-      letter: 'ب',
-      image: image,
-      motion: ArcMotion(start: Vector2.zero(), velocity: Vector2.zero()),
-      targetSize: 100,
-      // Ink occupies the top-left quadrant of the 100x100 texture.
-      inkRect: const ui.Rect.fromLTWH(0, 0, 40, 20),
-    );
-    // scale = targetSize / max(image.width, image.height) = 100 / 100 = 1.
-    expect(letter.inkCenter, Vector2(20, 10)); // center of (0,0,40,20)
-    expect(letter.hitRadius, 20); // max(40, 20) / 2
-  });
-
-  test('letter inkRect scales with the component when targetSize differs from texture size', () async {
-    final image = await testImage(width: 100, height: 200);
-    final letter = LetterComponent(
-      letter: 'ب',
-      image: image,
-      motion: ArcMotion(start: Vector2.zero(), velocity: Vector2.zero()),
-      targetSize: 100, // longest edge (200) -> scale 0.5; size becomes (50, 100)
-      // Ink rect in texture-pixel coords: (10,20)-(50,60) -> 40x40.
-      inkRect: const ui.Rect.fromLTWH(10, 20, 40, 40),
-    );
-    // scale = 100 / 200 = 0.5
-    expect(letter.size, Vector2(50, 100));
-    expect(letter.inkCenter, Vector2((10 + 20) * 0.5, (20 + 20) * 0.5)); // center (30,40) * 0.5 = (15,20)
-    expect(letter.hitRadius, 40 * 0.5 / 2); // max(40,40) * 0.5 / 2 = 10
-  });
+import 'package:alaif/core/arc_motion.dart';
+import 'package:alaif/game/alaif_game.dart';
+import 'package:alaif/game/letter_component.dart';
+import 'package:alaif/game/sliced_halves.dart';
+import 'package:alaif/ui/design_tokens.dart';
+import 'package:flame/components.dart';
+import 'package:flame_test/flame_test.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 ```
 
 - [ ] Run it and confirm it fails:
 
 ```
-cd /Users/iammoo/code/alaif/app && flutter test test/game/components_test.dart 2>&1 | tail -40
+cd /Users/iammoo/code/alaif/app && flutter test test/game/components_test.dart 2>&1 | tail -50
 ```
 
-  Expected: compile errors — `LetterComponent` has no `inkRect` parameter or `inkCenter` getter.
+  Expected: failures — `hitRadius` still equals the old `size.x / 2` values
+  (40 and 25), and `LetterComponent` has no `random` constructor parameter
+  (compile error for the rotation tests).
 
-- [ ] Implement the minimal fix. Replace the entire contents of `/Users/iammoo/code/alaif/app/lib/game/letter_component.dart` with:
+- [ ] Implement the minimal fix. Replace the entire contents of
+      `/Users/iammoo/code/alaif/app/lib/game/letter_component.dart` with:
 
 ```dart
 import 'dart:math' as math;
@@ -1275,13 +1854,17 @@ import 'package:flame/components.dart';
 import '../core/arc_motion.dart';
 import '../ui/design_tokens.dart';
 
+/// Maximum magnitude of the per-spawn random "toss" rotation (radians),
+/// applied once at construction when a [Random] source is supplied.
+const double _maxSpawnRotation = 0.12;
+
 class LetterComponent extends PositionComponent {
   LetterComponent({
     required this.letter,
     required ui.Image image,
     required this.motion,
     double targetSize = AlaifGlyph.spawnSizeMax,
-    ui.Rect? inkRect,
+    math.Random? random,
   }) : _image = image {
     final longest = math.max(image.width, image.height).toDouble();
     final scale = targetSize / longest;
@@ -1289,20 +1872,24 @@ class LetterComponent extends PositionComponent {
     anchor = Anchor.center;
     position = motion.positionAt(0);
 
-    final rect = inkRect ??
-        ui.Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
-    _inkCenter = Vector2(
-      (rect.left + rect.right) / 2 * scale,
-      (rect.top + rect.bottom) / 2 * scale,
-    );
-    _hitRadius = math.max(rect.width, rect.height) * scale / 2;
+    // Hit circle is the inscribed circle of the (square) carrier card,
+    // scaled slightly by AlaifCard.hitRadiusFactor for a forgiving hit area.
+    // For non-square textures (e.g. test fixtures), use the longer scaled
+    // edge so the hit area still comfortably covers the texture.
+    _hitRadius = math.max(size.x, size.y) / 2 * AlaifCard.hitRadiusFactor;
+
+    // Per-spawn "toss": a small fixed rotation in [-0.12, 0.12] rad, applied
+    // once. Omitted (angle stays 0) when no Random source is supplied, so
+    // existing callers that don't care about rotation are unaffected.
+    if (random != null) {
+      angle = (random.nextDouble() * 2 - 1) * _maxSpawnRotation;
+    }
   }
 
   final String letter;
   final ArcMotion motion;
   final ui.Image _image;
   double _age = 0;
-  late final Vector2 _inkCenter;
   late final double _hitRadius;
 
   /// Set once the letter has been on screen; used for missed-letter detection.
@@ -1315,20 +1902,15 @@ class LetterComponent extends PositionComponent {
 
   ui.Image get image => _image;
 
-  /// Center of the glyph's ink, in local component coordinates (0..size).
-  /// Falls back to the geometric center of [size] when no `inkRect` was
-  /// supplied at construction.
-  Vector2 get inkCenter => _inkCenter;
-
-  /// Circular hit approximation centered on [inkCenter], sized from the
-  /// glyph's ink bounding box (or the full bbox if no `inkRect` was supplied).
+  /// Circular hit approximation centered on the component, sized from the
+  /// scaled carrier-card geometry (see [AlaifCard.hitRadiusFactor]).
   double get hitRadius => _hitRadius;
 
   @override
   void update(double dt) {
     _age += dt;
     position = motion.positionAt(_age);
-    angle += 0.5 * dt; // gentle tumble
+    angle += 0.5 * dt; // gentle tumble (in addition to the fixed spawn tilt)
   }
 
   @override
@@ -1346,7 +1928,7 @@ class LetterComponent extends PositionComponent {
 - [ ] Run the targeted test again and confirm it passes:
 
 ```
-cd /Users/iammoo/code/alaif/app && flutter test test/game/components_test.dart 2>&1 | tail -40
+cd /Users/iammoo/code/alaif/app && flutter test test/game/components_test.dart 2>&1 | tail -50
 ```
 
   Expected: all tests in this file pass.
@@ -1362,244 +1944,35 @@ cd /Users/iammoo/code/alaif/app && flutter test 2>&1 | tail -20
 - [ ] Commit:
 
 ```
-cd /Users/iammoo/code/alaif/app && git add lib/game/letter_component.dart test/game/components_test.dart && git commit -m "feat: derive LetterComponent hitRadius and inkCenter from glyph ink rect"
+cd /Users/iammoo/code/alaif/app && git add lib/game/letter_component.dart test/game/components_test.dart && git commit -m "feat: derive LetterComponent hit circle from card geometry and add spawn-toss rotation"
 ```
 
 ---
 
-## Task 7: Wire spawner + game to pass `inkRect` from the atlas
+## Task 9: Swipe-angle half-plane cut + impulse on `SlicedHalf`
 
-`Spawner` now passes `game.atlas.inkRectFor(letter)` to `LetterComponent`, and `_sliceLetter` uses `letter.inkCenter` (in world coordinates) as the ink-burst origin instead of `letter.position`.
+`SlicedHalf` clips the composite card texture with a half-plane `Path`
+through the card center along the swipe direction (degenerate/zero-length
+swipe falls back to a horizontal cut). The two halves separate perpendicular
+to the cut line with an impulse scaled by swipe speed (clamped), on top of
+the existing gravity/tumble. `trySlice` threads the swipe segment through to
+`_sliceLetter`, which computes the cut direction and impulse and spawns the
+ink burst at the letter center.
 
 **Files:**
-- Modify: `/Users/iammoo/code/alaif/app/lib/game/spawner.dart`
+- Modify: `/Users/iammoo/code/alaif/app/lib/game/sliced_halves.dart`
 - Modify: `/Users/iammoo/code/alaif/app/lib/game/alaif_game.dart`
-- Modify: `/Users/iammoo/code/alaif/app/test/game/spawner_test.dart`
+- Modify: `/Users/iammoo/code/alaif/app/lib/ui/design_tokens.dart`
+- Modify: `/Users/iammoo/code/alaif/app/test/game/components_test.dart`
 - Modify: `/Users/iammoo/code/alaif/app/test/game/alaif_game_test.dart`
 
 ### Steps
 
-- [ ] Read the current spawner test to match its style:
-
-```
-cd /Users/iammoo/code/alaif/app && cat test/game/spawner_test.dart
-```
-
-- [ ] Write a failing test. Open `/Users/iammoo/code/alaif/app/test/game/spawner_test.dart` and add the following test inside `void main() { ... }`, after any existing tests (before the final closing `}`):
-
-```dart
-  testWithGame<AlaifGame>('spawned letters carry an inkRect-derived hitRadius smaller than the full bbox',
-      AlaifGame.new, (game) async {
-    game.startGame();
-    game.update(0); // flush Spawner addition
-    final spawner = game.children.whereType<Spawner>().single;
-    spawner.update(10); // force at least one spawn regardless of curve timing
-    game.update(0); // flush spawned letter addition
-
-    final letters = game.children.whereType<LetterComponent>().toList();
-    expect(letters, isNotEmpty);
-    for (final letter in letters) {
-      // Full-bbox hit radius would be letter.size.x / 2; ink-derived radius
-      // must be <= that (it can equal it only if the glyph's ink rect
-      // happens to span the full texture, which none of the 28 letters do).
-      expect(letter.hitRadius, lessThanOrEqualTo(letter.size.x / 2));
-      expect(letter.hitRadius, greaterThan(0));
-    }
-  });
-```
-
-  Add the necessary imports at the top of the file if not already present — open the file first and check; it must import:
-
-```dart
-import 'package:alaif/game/alaif_game.dart';
-import 'package:alaif/game/letter_component.dart';
-import 'package:alaif/game/spawner.dart';
-import 'package:flame_test/flame_test.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-```
-
-  Add only the imports that are missing (do not duplicate existing ones), preserving the rest of the file's existing content (including its `setUp`/`TestWidgetsFlutterBinding.ensureInitialized()` and any existing tests).
-
-- [ ] Run it and confirm it fails:
-
-```
-cd /Users/iammoo/code/alaif/app && flutter test test/game/spawner_test.dart 2>&1 | tail -40
-```
-
-  Expected: the new test fails because `LetterComponent.hitRadius` still equals `size.x / 2` (no `inkRect` is passed by `Spawner` yet).
-
-- [ ] Implement the minimal fix in `Spawner`. In `/Users/iammoo/code/alaif/app/lib/game/spawner.dart`, the current letter-spawn block is:
-
-```dart
-    if (_random.nextDouble() < _curve.bombChance(_elapsed)) {
-      game.add(BombComponent(motion: motion));
-    } else {
-      final letter =
-          GlyphAtlas.letters[_random.nextInt(GlyphAtlas.letters.length)];
-      final targetSize = AlaifGlyph.spawnSizeMin +
-          (AlaifGlyph.spawnSizeMax - AlaifGlyph.spawnSizeMin) *
-              _random.nextDouble();
-      game.add(LetterComponent(
-        letter: letter,
-        image: game.atlas.imageFor(letter),
-        motion: motion,
-        targetSize: targetSize,
-      ));
-    }
-```
-
-  Change it to:
-
-```dart
-    if (_random.nextDouble() < _curve.bombChance(_elapsed)) {
-      game.add(BombComponent(motion: motion));
-    } else {
-      final letter =
-          GlyphAtlas.letters[_random.nextInt(GlyphAtlas.letters.length)];
-      final targetSize = AlaifGlyph.spawnSizeMin +
-          (AlaifGlyph.spawnSizeMax - AlaifGlyph.spawnSizeMin) *
-              _random.nextDouble();
-      game.add(LetterComponent(
-        letter: letter,
-        image: game.atlas.imageFor(letter),
-        motion: motion,
-        targetSize: targetSize,
-        inkRect: game.atlas.inkRectFor(letter),
-      ));
-    }
-```
-
-- [ ] Implement the minimal fix in `AlaifGame._sliceLetter`. Open `/Users/iammoo/code/alaif/app/lib/game/alaif_game.dart`. The current `_sliceLetter` is:
-
-```dart
-  void _sliceLetter(LetterComponent letter) {
-    letter.sliced = true;
-    scoreState.registerHit();
-    haptics.onSlice();
-    audio.playSlice();
-    letter.removeFromParent();
-    _lastSlicePosition = letter.position.clone();
-    add(InkBurstComponent(
-      particles: spawnCutBurst(letter.position, _random),
-    ));
-    final cutoff = size.y + 200;
-    add(SlicedHalf(
-      image: letter.image,
-      startPosition: letter.position,
-      velocity: Vector2(-120, -150),
-      topHalf: true,
-      removeBelowY: cutoff,
-      displaySize: letter.size.clone(),
-    ));
-    add(SlicedHalf(
-      image: letter.image,
-      startPosition: letter.position,
-      velocity: Vector2(120, -100),
-      topHalf: false,
-      removeBelowY: cutoff,
-      displaySize: letter.size.clone(),
-    ));
-  }
-```
-
-  Change it to:
-
-```dart
-  void _sliceLetter(LetterComponent letter) {
-    letter.sliced = true;
-    scoreState.registerHit();
-    haptics.onSlice();
-    audio.playSlice();
-    letter.removeFromParent();
-    // World-space ink center: position is the bbox center (anchor.center),
-    // so top-left is (position - size/2); inkCenter is local (0..size).
-    final inkCenterWorld =
-        letter.position - letter.size / 2 + letter.inkCenter;
-    _lastSlicePosition = inkCenterWorld.clone();
-    add(InkBurstComponent(
-      particles: spawnCutBurst(inkCenterWorld, _random),
-    ));
-    final cutoff = size.y + 200;
-    add(SlicedHalf(
-      image: letter.image,
-      startPosition: letter.position,
-      velocity: Vector2(-120, -150),
-      topHalf: true,
-      removeBelowY: cutoff,
-      displaySize: letter.size.clone(),
-    ));
-    add(SlicedHalf(
-      image: letter.image,
-      startPosition: letter.position,
-      velocity: Vector2(120, -100),
-      topHalf: false,
-      removeBelowY: cutoff,
-      displaySize: letter.size.clone(),
-    ));
-  }
-```
-
-- [ ] Update `/Users/iammoo/code/alaif/app/test/game/alaif_game_test.dart`'s `staticLetter` helper so it also carries an `inkRect` (matching real spawns) and so existing position-based assertions on `_lastSlicePosition`/burst positions remain meaningful. The current helper is:
-
-```dart
-LetterComponent staticLetter(AlaifGame game, {double x = 100, double y = 300}) {
-  return LetterComponent(
-    letter: 'ب',
-    image: game.atlas.imageFor('ب'),
-    motion: ArcMotion(start: Vector2(x, y), velocity: Vector2.zero(), gravity: 0),
-  );
-}
-```
-
-  Change it to:
-
-```dart
-LetterComponent staticLetter(AlaifGame game, {double x = 100, double y = 300}) {
-  return LetterComponent(
-    letter: 'ب',
-    image: game.atlas.imageFor('ب'),
-    motion: ArcMotion(start: Vector2(x, y), velocity: Vector2.zero(), gravity: 0),
-    inkRect: game.atlas.inkRectFor('ب'),
-  );
-}
-```
-
-- [ ] Run the targeted tests again and confirm they pass:
-
-```
-cd /Users/iammoo/code/alaif/app && flutter test test/game/spawner_test.dart test/game/alaif_game_test.dart 2>&1 | tail -60
-```
-
-  Expected: all tests in both files pass.
-
-- [ ] Run the full suite and confirm it is green:
-
-```
-cd /Users/iammoo/code/alaif/app && flutter test 2>&1 | tail -20
-```
-
-  Expected: `All tests passed!`
-
-- [ ] Commit:
-
-```
-cd /Users/iammoo/code/alaif/app && git add lib/game/spawner.dart lib/game/alaif_game.dart test/game/spawner_test.dart test/game/alaif_game_test.dart && git commit -m "feat: spawn letters with ink rects and burst from ink center on slice"
-```
-
----
-
-## Task 8: Half-plane clip geometry on `SlicedHalf`
-
-Replaces the fixed horizontal-bisection clip with a half-plane `Path` clip through a given local cut center, along a given cut direction. Adds a static, independently-testable `halfPlanePath` helper.
-
-**Files:**
-- Modify: `/Users/iammoo/code/alaif/app/lib/game/sliced_halves.dart`
-- Modify: `/Users/iammoo/code/alaif/app/test/game/components_test.dart`
-
-### Steps
-
-- [ ] Write failing tests. Open `/Users/iammoo/code/alaif/app/test/game/components_test.dart` and add the following tests inside `void main() { ... }`, after the three new `LetterComponent` ink-rect tests added in Task 6 (before the existing `testWithGame<AlaifGame>('sliced half is removed after cutHalfTumbleMs', ...)` test, or anywhere else inside `main()` — placement among tests does not matter, only that they are inside `main()`):
+- [ ] Write failing tests for `SlicedHalf`. Open
+      `/Users/iammoo/code/alaif/app/test/game/components_test.dart` and add
+      the following inside `void main() { ... }`, after the `LetterComponent`
+      tests added in Task 8 (placement among tests does not matter, only that
+      they are inside `main()`):
 
 ```dart
   group('SlicedHalf.halfPlanePath', () {
@@ -1625,12 +1998,12 @@ Replaces the fixed horizontal-bisection clip with a half-plane `Path` clip throu
       expect(path.contains(const ui.Offset(50, 90)), isFalse); // below the line
     });
 
-    test('vertical cut through center: positive side keeps the right half', () {
+    test('vertical cut through center: positive side keeps the left half', () {
       final path = SlicedHalf.halfPlanePath(
         size: Vector2(100, 100),
         cutCenter: Vector2(50, 50),
         cutDirection: Vector2(0, 1), // vertical line x=50
-        keepPositiveSide: true, // normal = (-1,0) -> positive side is x < 50... see below
+        keepPositiveSide: true, // normal = (-1,0) -> positive side is x < 50
       );
       // For direction (0,1), normal = (-dy, dx) = (-1, 0), so the positive
       // side ((p-c) dot normal >= 0) is x <= 50 (the left half).
@@ -1648,9 +2021,40 @@ Replaces the fixed horizontal-bisection clip with a half-plane `Path` clip throu
       expect(path.contains(const ui.Offset(50, 50)), isTrue); // y=50 > 20
       expect(path.contains(const ui.Offset(50, 5)), isFalse); // y=5 < 20
     });
+
+    test('zero-length cut direction falls back to horizontal', () {
+      final path = SlicedHalf.halfPlanePath(
+        size: Vector2(100, 100),
+        cutCenter: Vector2(50, 50),
+        cutDirection: Vector2.zero(),
+        keepPositiveSide: true,
+      );
+      expect(path.contains(const ui.Offset(50, 90)), isTrue); // below
+      expect(path.contains(const ui.Offset(50, 10)), isFalse); // above
+    });
   });
 
-  testWithGame<AlaifGame>('sliced half with cut geometry renders without throwing',
+  testWithGame<AlaifGame>('sliced half defaults to a horizontal cut through its center',
+      AlaifGame.new, (game) async {
+    SharedPreferences.setMockInitialValues({});
+    final image = await testImage(width: 100, height: 100);
+    final half = SlicedHalf(
+      image: image,
+      startPosition: Vector2(100, 100),
+      velocity: Vector2.zero(),
+      topHalf: true,
+      removeBelowY: 100000,
+      displaySize: Vector2(100, 100),
+    );
+    expect(half.cutCenter, Vector2(50, 50));
+    expect(half.cutDirection, Vector2(1, 0));
+
+    final recorder = ui.PictureRecorder();
+    half.render(ui.Canvas(recorder));
+    recorder.endRecording().dispose();
+  });
+
+  testWithGame<AlaifGame>('sliced half with explicit cut geometry renders without throwing',
       AlaifGame.new, (game) async {
     SharedPreferences.setMockInitialValues({});
     final image = await testImage();
@@ -1661,7 +2065,7 @@ Replaces the fixed horizontal-bisection clip with a half-plane `Path` clip throu
       topHalf: true,
       removeBelowY: 100000,
       cutCenter: Vector2(20, 30),
-      cutDirection: Vector2(1, 0),
+      cutDirection: Vector2(1, 1),
     );
     await game.add(half);
     game.update(0);
@@ -1672,15 +2076,22 @@ Replaces the fixed horizontal-bisection clip with a half-plane `Path` clip throu
   });
 ```
 
+  Add the `cutCenter`/`cutDirection` getters and `halfPlanePath` static
+  method don't exist yet — confirmed by the next step.
+
 - [ ] Run it and confirm it fails:
 
 ```
 cd /Users/iammoo/code/alaif/app && flutter test test/game/components_test.dart 2>&1 | tail -50
 ```
 
-  Expected: compile errors — `SlicedHalf.halfPlanePath` doesn't exist, and the `SlicedHalf` constructor has no `cutCenter`/`cutDirection` parameters.
+  Expected: compile errors — `SlicedHalf.halfPlanePath`, `cutCenter`, and
+  `cutDirection` don't exist, and the constructor has no
+  `cutCenter`/`cutDirection` parameters.
 
-- [ ] Implement the minimal fix. Replace the entire contents of `/Users/iammoo/code/alaif/app/lib/game/sliced_halves.dart` with:
+- [ ] Implement the half-plane clip in `SlicedHalf`. Replace the entire
+      contents of `/Users/iammoo/code/alaif/app/lib/game/sliced_halves.dart`
+      with:
 
 ```dart
 import 'dart:ui' as ui;
@@ -1689,8 +2100,8 @@ import 'package:flame/components.dart';
 
 import '../ui/design_tokens.dart';
 
-/// One half of a sliced glyph, clipped from the full texture along the
-/// swipe's cut line, tumbling away.
+/// One half of a sliced glyph card, clipped from the full composite texture
+/// along the swipe's cut line, tumbling away.
 ///
 /// Removed when it falls past [removeBelowY] OR after
 /// [AlaifMotion.cutHalfTumbleMs], whichever comes first.
@@ -1712,7 +2123,7 @@ class SlicedHalf extends PositionComponent {
     position = startPosition.clone();
 
     // Default cut: horizontal line through the component's center, matching
-    // the previous fixed-bisection behavior when no swipe geometry is given.
+    // a plain top/bottom split when no swipe geometry is given.
     _cutCenter = cutCenter?.clone() ?? Vector2(size.x / 2, size.y / 2);
     final dir = cutDirection?.clone() ?? Vector2(1, 0);
     _cutDirection = dir.length2 > 0 ? (dir..normalize()) : Vector2(1, 0);
@@ -1733,6 +2144,16 @@ class SlicedHalf extends PositionComponent {
   late final Vector2 _cutCenter;
   late final Vector2 _cutDirection;
   double _ageMs = 0;
+
+  /// Current tumble velocity (px/s). Exposed for testing the perpendicular
+  /// separation of the two halves.
+  Vector2 get velocity => _velocity;
+
+  /// Point (in local component coordinates) the cut line passes through.
+  Vector2 get cutCenter => _cutCenter;
+
+  /// Unit vector along the cut line that produced this half.
+  Vector2 get cutDirection => _cutDirection;
 
   @override
   void update(double dt) {
@@ -1766,7 +2187,8 @@ class SlicedHalf extends PositionComponent {
 
   /// Builds a `Path` covering one half-plane of an (effectively infinite)
   /// line through [cutCenter] with direction [cutDirection] (need not be
-  /// normalized; will be normalized internally).
+  /// normalized; will be normalized internally — a zero-length direction
+  /// falls back to horizontal, i.e. `(1, 0)`).
   ///
   /// The line's normal is `(-cutDirection.y, cutDirection.x)`. A point [p] is
   /// on the "positive" side when `(p - cutCenter) dot normal >= 0`.
@@ -1809,41 +2231,85 @@ class SlicedHalf extends PositionComponent {
 cd /Users/iammoo/code/alaif/app && flutter test test/game/components_test.dart 2>&1 | tail -60
 ```
 
-  Expected: all tests in this file pass, including the new `SlicedHalf.halfPlanePath` group and the cut-geometry render test. Note: the existing test `'sliced half falls and removes itself below the cutoff'` and `'sliced half is removed after cutHalfTumbleMs'` construct `SlicedHalf` without `cutCenter`/`cutDirection` — these must still pass via the defaults.
+  Expected: all tests in this file pass, including the new
+  `SlicedHalf.halfPlanePath` group and the two new `SlicedHalf` rendering
+  tests. The pre-existing tests `'sliced half is removed after
+  cutHalfTumbleMs'` and `'sliced half falls and removes itself below the
+  cutoff'` construct `SlicedHalf` without `cutCenter`/`cutDirection` — these
+  must still pass via the defaults.
 
-- [ ] Run the full suite and confirm it is green:
+- [ ] Add the swipe-impulse tunables to `AlaifMotion`. Open
+      `/Users/iammoo/code/alaif/app/lib/ui/design_tokens.dart`. The current
+      `AlaifMotion` class is:
 
+```dart
+abstract class AlaifMotion {
+  // Blade trail (BladeTrail component).
+  static const bladeRetentionMs = 110; // how long a trail point lives
+  static const bladeWidth = 7.0; // head thickness
+  static const bladeMinWidth = 1.5; // tail thickness (tapers to this)
+
+  // Cut feedback — ink splatter when a letter is sliced.
+  static const cutInkParticles = 14;
+  static const cutParticleSpeedMin = 120.0; // px/s
+  static const cutParticleSpeedMax = 360.0;
+  static const cutParticleLifeMs = 520;
+  static const cutHalfTumbleMs = 900; // sliced halves spin off-screen
+
+  // Combo — gold dust burst on 3+ in one swipe.
+  static const comboDustParticles = 18;
+  static const comboFlashMs = 600; // combo callout fade
+
+  // Score / life pops.
+  static const scorePopMs = 220;
+  static const lifeLostFlashMs = 280;
+
+  // Standard overlay transition.
+  static const overlayFadeMs = 220;
+  static const overlayCurve = Curves.easeOutCubic;
+}
 ```
-cd /Users/iammoo/code/alaif/app && flutter test 2>&1 | tail -20
+
+  Change it to:
+
+```dart
+abstract class AlaifMotion {
+  // Blade trail (BladeTrail component).
+  static const bladeRetentionMs = 110; // how long a trail point lives
+  static const bladeWidth = 7.0; // head thickness
+  static const bladeMinWidth = 1.5; // tail thickness (tapers to this)
+
+  // Cut feedback — ink splatter when a letter is sliced.
+  static const cutInkParticles = 14;
+  static const cutParticleSpeedMin = 120.0; // px/s
+  static const cutParticleSpeedMax = 360.0;
+  static const cutParticleLifeMs = 520;
+  static const cutHalfTumbleMs = 900; // sliced halves spin off-screen
+
+  // Sliced-half separation impulse, perpendicular to the cut line.
+  static const cutSeparationBaseSpeed = 150.0; // px/s, floor (slow swipes)
+  static const cutSeparationSwipeScale = 1.5; // extra px/s per px of swipe segment
+  static const cutSeparationMaxSpeed = 900.0; // px/s, ceiling (fast swipes)
+
+  // Combo — gold dust burst on 3+ in one swipe.
+  static const comboDustParticles = 18;
+  static const comboFlashMs = 600; // combo callout fade
+
+  // Score / life pops.
+  static const scorePopMs = 220;
+  static const lifeLostFlashMs = 280;
+
+  // Standard overlay transition.
+  static const overlayFadeMs = 220;
+  static const overlayCurve = Curves.easeOutCubic;
+}
 ```
 
-  Expected: `All tests passed!`
-
-- [ ] Commit:
-
-```
-cd /Users/iammoo/code/alaif/app && git add lib/game/sliced_halves.dart test/game/components_test.dart && git commit -m "feat: clip SlicedHalf with a half-plane Path along the cut line"
-```
-
----
-
-## Task 9: Thread the swipe segment from `trySlice` into the cut geometry
-
-`trySlice` now passes the swipe's `from`/`to` segment into `_sliceLetter`, which computes the cut direction from it (falling back to horizontal for a degenerate/zero-length segment) and passes `cutCenter` (the letter's local `inkCenter`) and `cutDirection` to both `SlicedHalf`s. The two halves also separate perpendicular to the cut line.
-
-**Files:**
-- Modify: `/Users/iammoo/code/alaif/app/lib/game/alaif_game.dart`
-- Modify: `/Users/iammoo/code/alaif/app/test/game/alaif_game_test.dart`
-
-### Steps
-
-- [ ] Write failing tests. Open `/Users/iammoo/code/alaif/app/test/game/alaif_game_test.dart`. Ensure the import list includes `dart:ui` and `Vector2`/`SlicedHalf` (already imported via `package:flame/components.dart` and `package:alaif/game/sliced_halves.dart` respectively — check the current imports first):
-
-```
-cd /Users/iammoo/code/alaif/app && head -20 test/game/alaif_game_test.dart
-```
-
-  If `dart:ui` is not imported, add `import 'dart:ui' as ui;` as the first line of the file. Then add the following test inside `void main() { ... }`, after the `'a letter already sliced this frame is not sliced again by a later segment'` test added in Task 1:
+- [ ] Write failing tests for the swipe-angle threading. Open
+      `/Users/iammoo/code/alaif/app/test/game/alaif_game_test.dart`. Add the
+      following inside `void main() { ... }`, after the `'a letter already
+      sliced this frame is not sliced again by a later segment'` test added
+      in Task 1:
 
 ```dart
   testWithGame<AlaifGame>(
@@ -1863,6 +2329,8 @@ cd /Users/iammoo/code/alaif/app && head -20 test/game/alaif_game_test.dart
     for (final half in halves) {
       // cutDirection should be (close to) vertical: |y| component dominates.
       expect(half.cutDirection.x.abs(), lessThan(half.cutDirection.y.abs()));
+      // Cut passes through the letter's center.
+      expect(half.cutCenter, letter.size / 2);
     }
     // The two halves must separate from each other (different velocities).
     expect(halves[0].velocity, isNot(equals(halves[1].velocity)));
@@ -1886,70 +2354,142 @@ cd /Users/iammoo/code/alaif/app && head -20 test/game/alaif_game_test.dart
       expect(half.cutDirection, Vector2(1, 0));
     }
   });
+
+  testWithGame<AlaifGame>(
+      'a fast swipe produces a larger half-separation impulse than a slow one',
+      AlaifGame.new, (game) async {
+    game.startGame();
+
+    final slowLetter = staticLetter(game, x: 100, y: 300);
+    game.add(slowLetter);
+    game.update(0);
+    game.trySlice(Vector2(99, 300), Vector2(101, 300)); // tiny 2px segment
+    game.update(0);
+    final slowHalves = game.children.whereType<SlicedHalf>().toList();
+    final slowSpeed = slowHalves.first.velocity.length;
+
+    game.startGame(); // clears halves and resets state
+
+    final fastLetter = staticLetter(game, x: 100, y: 300);
+    game.add(fastLetter);
+    game.update(0);
+    game.trySlice(Vector2(0, 300), Vector2(800, 300)); // large fast segment
+    game.update(0);
+    final fastHalves = game.children.whereType<SlicedHalf>().toList();
+    final fastSpeed = fastHalves.first.velocity.length;
+
+    expect(fastSpeed, greaterThan(slowSpeed));
+    // Even the fast swipe is clamped.
+    // velocity = perp * separationSpeed + popVelocity (0, -100), so its
+    // magnitude is bounded by the clamped separation speed plus the pop
+    // velocity's length.
+    const popVelocityLength = 100.0; // matches AlaifGame's _halfPopVelocity
+    expect(
+      fastSpeed,
+      lessThanOrEqualTo(AlaifMotion.cutSeparationMaxSpeed + popVelocityLength),
+    );
+  });
+```
+
+  Add the imports needed for these tests. The current top of
+  `alaif_game_test.dart` is:
+
+```dart
+import 'package:alaif/core/arc_motion.dart';
+import 'package:alaif/core/score_state.dart';
+import 'package:alaif/game/alaif_game.dart';
+import 'package:alaif/game/bomb_component.dart';
+import 'package:alaif/game/combo_callout.dart';
+import 'package:alaif/game/ink_burst_component.dart';
+import 'package:alaif/game/letter_component.dart';
+import 'package:alaif/game/sliced_halves.dart';
+import 'package:alaif/services/audio_service.dart';
+import 'package:alaif/services/haptics_service.dart';
+import 'package:flame/components.dart';
+import 'package:flame_test/flame_test.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+```
+
+  Add `package:alaif/ui/design_tokens.dart` (for `AlaifMotion`):
+
+```dart
+import 'package:alaif/core/arc_motion.dart';
+import 'package:alaif/core/score_state.dart';
+import 'package:alaif/game/alaif_game.dart';
+import 'package:alaif/game/bomb_component.dart';
+import 'package:alaif/game/combo_callout.dart';
+import 'package:alaif/game/ink_burst_component.dart';
+import 'package:alaif/game/letter_component.dart';
+import 'package:alaif/game/sliced_halves.dart';
+import 'package:alaif/services/audio_service.dart';
+import 'package:alaif/services/haptics_service.dart';
+import 'package:alaif/ui/design_tokens.dart';
+import 'package:flame/components.dart';
+import 'package:flame_test/flame_test.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 ```
 
 - [ ] Run it and confirm it fails:
 
 ```
-cd /Users/iammoo/code/alaif/app && flutter test test/game/alaif_game_test.dart 2>&1 | tail -50
+cd /Users/iammoo/code/alaif/app && flutter test test/game/alaif_game_test.dart 2>&1 | tail -60
 ```
 
-  Expected: compile errors — `SlicedHalf` has no public `cutDirection`/`velocity` getters yet (added below), and `_sliceLetter` does not yet vary the cut by swipe direction.
+  Expected: compile error / failure — `_sliceLetter` is still called with one
+  argument and does not vary the cut by swipe direction, so `cutCenter`/
+  `cutDirection`/`velocity` differences don't yet match the new tests.
 
-- [ ] Add public getters to `SlicedHalf`. Open `/Users/iammoo/code/alaif/app/lib/game/sliced_halves.dart`. The current field declarations are:
-
-```dart
-  final ui.Image _image;
-  final Vector2 _velocity;
-  final bool topHalf;
-  final double removeBelowY;
-  late final Vector2 _cutCenter;
-  late final Vector2 _cutDirection;
-  double _ageMs = 0;
-```
-
-  Change them to:
+- [ ] Implement the cut-geometry threading in `AlaifGame`. Open
+      `/Users/iammoo/code/alaif/app/lib/game/alaif_game.dart`. The current
+      `trySlice` letter loop (after Task 1) is:
 
 ```dart
-  final ui.Image _image;
-  final Vector2 _velocity;
-  final bool topHalf;
-  final double removeBelowY;
-  late final Vector2 _cutCenter;
-  late final Vector2 _cutDirection;
-  double _ageMs = 0;
-
-  /// Current tumble velocity (px/s). Exposed for testing the perpendicular
-  /// separation of the two halves.
-  Vector2 get velocity => _velocity;
-
-  /// Unit vector along the cut line that produced this half.
-  Vector2 get cutDirection => _cutDirection;
-```
-
-- [ ] Implement the cut-geometry threading in `AlaifGame`. Open `/Users/iammoo/code/alaif/app/lib/game/alaif_game.dart`. The current `trySlice` letter loop is:
-
-```dart
+  void trySlice(Vector2 from, Vector2 to) {
+    if (!_playing) return;
     for (final letter in children.whereType<LetterComponent>().toList()) {
       if (letter.sliced) continue;
       if (segmentHitsCircle(from, to, letter.position, letter.hitRadius)) {
         _sliceLetter(letter);
       }
     }
+    for (final bomb in children.whereType<BombComponent>().toList()) {
+      if (segmentHitsCircle(from, to, bomb.position, bomb.hitRadius)) {
+        bomb.removeFromParent();
+        rules.onBombSliced();
+        haptics.onBomb();
+        audio.playBomb();
+        _checkGameOver();
+      }
+    }
+  }
 ```
 
-  Change it to:
+  Change the letter loop's `_sliceLetter` call to pass the swipe segment:
 
 ```dart
+  void trySlice(Vector2 from, Vector2 to) {
+    if (!_playing) return;
     for (final letter in children.whereType<LetterComponent>().toList()) {
       if (letter.sliced) continue;
       if (segmentHitsCircle(from, to, letter.position, letter.hitRadius)) {
         _sliceLetter(letter, from, to);
       }
     }
+    for (final bomb in children.whereType<BombComponent>().toList()) {
+      if (segmentHitsCircle(from, to, bomb.position, bomb.hitRadius)) {
+        bomb.removeFromParent();
+        rules.onBombSliced();
+        haptics.onBomb();
+        audio.playBomb();
+        _checkGameOver();
+      }
+    }
+  }
 ```
 
-  Then replace the entire `_sliceLetter` method — currently:
+  Then replace the entire `_sliceLetter` method — currently (after Task 1):
 
 ```dart
   void _sliceLetter(LetterComponent letter) {
@@ -1958,13 +2498,9 @@ cd /Users/iammoo/code/alaif/app && flutter test test/game/alaif_game_test.dart 2
     haptics.onSlice();
     audio.playSlice();
     letter.removeFromParent();
-    // World-space ink center: position is the bbox center (anchor.center),
-    // so top-left is (position - size/2); inkCenter is local (0..size).
-    final inkCenterWorld =
-        letter.position - letter.size / 2 + letter.inkCenter;
-    _lastSlicePosition = inkCenterWorld.clone();
+    _lastSlicePosition = letter.position.clone();
     add(InkBurstComponent(
-      particles: spawnCutBurst(inkCenterWorld, _random),
+      particles: spawnCutBurst(letter.position, _random),
     ));
     final cutoff = size.y + 200;
     add(SlicedHalf(
@@ -1989,10 +2525,6 @@ cd /Users/iammoo/code/alaif/app && flutter test test/game/alaif_game_test.dart 2
   Replace it with:
 
 ```dart
-  /// Perpendicular separation speed (px/s) the two halves drift apart at,
-  /// in addition to their shared upward "pop" velocity.
-  static const _halfSeparationSpeed = 150.0;
-
   /// Shared upward "pop" velocity (px/s) added to both halves' separation.
   static final Vector2 _halfPopVelocity = Vector2(0, -100);
 
@@ -2002,48 +2534,53 @@ cd /Users/iammoo/code/alaif/app && flutter test test/game/alaif_game_test.dart 2
     haptics.onSlice();
     audio.playSlice();
     letter.removeFromParent();
-    // World-space ink center: position is the bbox center (anchor.center),
-    // so top-left is (position - size/2); inkCenter is local (0..size).
-    final inkCenterWorld =
-        letter.position - letter.size / 2 + letter.inkCenter;
-    _lastSlicePosition = inkCenterWorld.clone();
+    _lastSlicePosition = letter.position.clone();
     add(InkBurstComponent(
-      particles: spawnCutBurst(inkCenterWorld, _random),
+      particles: spawnCutBurst(letter.position, _random),
     ));
 
     // Cut direction follows the swipe; degenerate (zero-length) segments
-    // fall back to a horizontal cut.
+    // fall back to a horizontal cut. The cut always passes through the
+    // card's center (the component's local center, size / 2).
     final swipeVector = swipeTo - swipeFrom;
-    final cutDirection =
-        swipeVector.length2 > 0 ? (swipeVector.clone()..normalize()) : Vector2(1, 0);
-    // Halves separate perpendicular to the cut line, plus a shared upward pop.
+    final cutDirection = swipeVector.length2 > 0
+        ? (swipeVector.clone()..normalize())
+        : Vector2(1, 0);
+    final cutCenter = letter.size / 2;
+
+    // Halves separate perpendicular to the cut line, with an impulse scaled
+    // by the swipe segment's length (a proxy for swipe speed), clamped, plus
+    // a shared upward pop.
     final perp = Vector2(-cutDirection.y, cutDirection.x);
+    final separationSpeed = (AlaifMotion.cutSeparationBaseSpeed +
+            swipeVector.length * AlaifMotion.cutSeparationSwipeScale)
+        .clamp(AlaifMotion.cutSeparationBaseSpeed, AlaifMotion.cutSeparationMaxSpeed);
 
     final cutoff = size.y + 200;
     add(SlicedHalf(
       image: letter.image,
       startPosition: letter.position,
-      velocity: perp * _halfSeparationSpeed + _halfPopVelocity,
+      velocity: perp * separationSpeed + _halfPopVelocity,
       topHalf: true,
       removeBelowY: cutoff,
       displaySize: letter.size.clone(),
-      cutCenter: letter.inkCenter,
+      cutCenter: cutCenter,
       cutDirection: cutDirection,
     ));
     add(SlicedHalf(
       image: letter.image,
       startPosition: letter.position,
-      velocity: -perp * _halfSeparationSpeed + _halfPopVelocity,
+      velocity: -perp * separationSpeed + _halfPopVelocity,
       topHalf: false,
       removeBelowY: cutoff,
       displaySize: letter.size.clone(),
-      cutCenter: letter.inkCenter,
+      cutCenter: cutCenter,
       cutDirection: cutDirection,
     ));
   }
 ```
 
-- [ ] Run the targeted test again and confirm it passes:
+- [ ] Run the targeted tests again and confirm they pass:
 
 ```
 cd /Users/iammoo/code/alaif/app && flutter test test/game/alaif_game_test.dart test/game/components_test.dart 2>&1 | tail -60
@@ -2062,14 +2599,313 @@ cd /Users/iammoo/code/alaif/app && flutter test 2>&1 | tail -20
 - [ ] Commit:
 
 ```
-cd /Users/iammoo/code/alaif/app && git add lib/game/alaif_game.dart lib/game/sliced_halves.dart test/game/alaif_game_test.dart && git commit -m "feat: cut letters along the swipe direction through their ink center"
+cd /Users/iammoo/code/alaif/app && git add lib/game/alaif_game.dart lib/game/sliced_halves.dart lib/ui/design_tokens.dart test/game/alaif_game_test.dart test/game/components_test.dart && git commit -m "feat: cut letter cards along the swipe direction with a speed-scaled separation impulse"
 ```
 
 ---
 
-## Task 10: Final verification — analyze + full suite
+## Task 10: Hit-stop juice on slice
 
-No code changes. Confirms the whole branch is clean: static analysis passes and every test (110 original + new ones from Tasks 1-9) is green.
+On each successful slice, `AlaifGame` sets a short hit-stop timer
+(`AlaifMotion.hitStopMs`, ~50ms). While the timer is active, `update()`
+scales the simulation `dt` passed to `super.update()` down to
+`AlaifMotion.hitStopScale` (~0.05) — components barely move for a brief
+moment, landing the cut with impact. The hit-stop timer itself counts down
+using the **real**, unscaled `dt` so it cannot lock up. Pause/overlay logic
+is unaffected (hit-stop only scales the gameplay-simulation `dt` inside
+`update()`, and `update()` already early-returns from its `_playing`-gated
+block regardless).
+
+**Files:**
+- Modify: `/Users/iammoo/code/alaif/app/lib/game/alaif_game.dart`
+- Modify: `/Users/iammoo/code/alaif/app/lib/ui/design_tokens.dart`
+- Modify: `/Users/iammoo/code/alaif/app/test/game/alaif_game_test.dart`
+
+### Steps
+
+- [ ] Add the hit-stop tunables to `AlaifMotion`. Open
+      `/Users/iammoo/code/alaif/app/lib/ui/design_tokens.dart`. The current
+      `AlaifMotion` class (after Task 9) is:
+
+```dart
+abstract class AlaifMotion {
+  // Blade trail (BladeTrail component).
+  static const bladeRetentionMs = 110; // how long a trail point lives
+  static const bladeWidth = 7.0; // head thickness
+  static const bladeMinWidth = 1.5; // tail thickness (tapers to this)
+
+  // Cut feedback — ink splatter when a letter is sliced.
+  static const cutInkParticles = 14;
+  static const cutParticleSpeedMin = 120.0; // px/s
+  static const cutParticleSpeedMax = 360.0;
+  static const cutParticleLifeMs = 520;
+  static const cutHalfTumbleMs = 900; // sliced halves spin off-screen
+
+  // Sliced-half separation impulse, perpendicular to the cut line.
+  static const cutSeparationBaseSpeed = 150.0; // px/s, floor (slow swipes)
+  static const cutSeparationSwipeScale = 1.5; // extra px/s per px of swipe segment
+  static const cutSeparationMaxSpeed = 900.0; // px/s, ceiling (fast swipes)
+
+  // Combo — gold dust burst on 3+ in one swipe.
+  static const comboDustParticles = 18;
+  static const comboFlashMs = 600; // combo callout fade
+
+  // Score / life pops.
+  static const scorePopMs = 220;
+  static const lifeLostFlashMs = 280;
+
+  // Standard overlay transition.
+  static const overlayFadeMs = 220;
+  static const overlayCurve = Curves.easeOutCubic;
+}
+```
+
+  Change it to:
+
+```dart
+abstract class AlaifMotion {
+  // Blade trail (BladeTrail component).
+  static const bladeRetentionMs = 110; // how long a trail point lives
+  static const bladeWidth = 7.0; // head thickness
+  static const bladeMinWidth = 1.5; // tail thickness (tapers to this)
+
+  // Cut feedback — ink splatter when a letter is sliced.
+  static const cutInkParticles = 14;
+  static const cutParticleSpeedMin = 120.0; // px/s
+  static const cutParticleSpeedMax = 360.0;
+  static const cutParticleLifeMs = 520;
+  static const cutHalfTumbleMs = 900; // sliced halves spin off-screen
+
+  // Sliced-half separation impulse, perpendicular to the cut line.
+  static const cutSeparationBaseSpeed = 150.0; // px/s, floor (slow swipes)
+  static const cutSeparationSwipeScale = 1.5; // extra px/s per px of swipe segment
+  static const cutSeparationMaxSpeed = 900.0; // px/s, ceiling (fast swipes)
+
+  // Hit-stop — brief simulation slowdown on a successful slice, for impact.
+  static const hitStopMs = 50; // real-time duration of the slowdown
+  static const hitStopScale = 0.05; // dt multiplier while hit-stop is active
+
+  // Combo — gold dust burst on 3+ in one swipe.
+  static const comboDustParticles = 18;
+  static const comboFlashMs = 600; // combo callout fade
+
+  // Score / life pops.
+  static const scorePopMs = 220;
+  static const lifeLostFlashMs = 280;
+
+  // Standard overlay transition.
+  static const overlayFadeMs = 220;
+  static const overlayCurve = Curves.easeOutCubic;
+}
+```
+
+- [ ] Write failing tests. Open
+      `/Users/iammoo/code/alaif/app/test/game/alaif_game_test.dart` and add
+      the following inside `void main() { ... }`, after the swipe-impulse
+      tests added in Task 9:
+
+```dart
+  testWithGame<AlaifGame>(
+      'slicing a letter triggers a brief hit-stop that scales down dt for the simulation',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    final letter = staticLetter(game, x: 100, y: 300);
+    game.add(letter);
+    game.update(0); // mount
+
+    game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.update(0); // process slice
+
+    final half = game.children.whereType<SlicedHalf>().first;
+    final yBefore = half.position.y;
+
+    // During hit-stop, a real-time-sized dt should barely move the half.
+    final hitStopDt = AlaifMotion.hitStopMs / 1000;
+    game.update(hitStopDt);
+    final yDuringHitStop = half.position.y;
+    expect(yDuringHitStop - yBefore, lessThan(1.0));
+
+    // After the hit-stop window elapses, the same dt advances normally.
+    game.update(hitStopDt);
+    final yAfterHitStop = half.position.y;
+    expect(yAfterHitStop - yDuringHitStop, greaterThan(1.0));
+  });
+
+  testWithGame<AlaifGame>('hit-stop does not affect the game when no slice has occurred',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    final letter = LetterComponent(
+      letter: 'ب',
+      image: game.atlas.imageFor('ب'),
+      motion: ArcMotion(start: Vector2(100, 300), velocity: Vector2(0, 100), gravity: 0),
+    );
+    game.add(letter);
+    game.update(0); // mount
+
+    final yBefore = letter.position.y;
+    game.update(0.1);
+    expect(letter.position.y - yBefore, closeTo(10, 1e-9)); // unscaled dt
+  });
+```
+
+  `LetterComponent` is already imported via
+  `package:alaif/game/letter_component.dart` and `ArcMotion` via
+  `package:alaif/core/arc_motion.dart` (both already present in this file's
+  imports — check the current import list and add only if missing).
+
+- [ ] Run it and confirm it fails:
+
+```
+cd /Users/iammoo/code/alaif/app && flutter test test/game/alaif_game_test.dart 2>&1 | tail -50
+```
+
+  Expected: the first new test fails — `update()` does not yet scale `dt`
+  during a hit-stop window, so `yDuringHitStop - yBefore` is not `< 1.0`. The
+  second new test should already pass (it doesn't depend on the new
+  behavior) — that's fine, it documents the no-hit-stop baseline.
+
+- [ ] Implement the minimal fix. Open
+      `/Users/iammoo/code/alaif/app/lib/game/alaif_game.dart`. The current
+      `update` method is:
+
+```dart
+  @override
+  void update(double dt) {
+    // Check positions before super.update so that externally-mutated positions
+    // (e.g. in tests) are visible before child update() resets them via ArcMotion.
+    if (_playing) {
+      for (final letter in children.whereType<LetterComponent>().toList()) {
+        if (!letter.entered && letter.position.y < size.y) letter.entered = true;
+        if (letter.entered && letter.position.y > size.y + 120) {
+          letter.removeFromParent();
+          rules.onLetterMissed();
+          haptics.onMiss();
+          audio.playMiss();
+          _checkGameOver();
+        }
+      }
+      for (final bomb in children.whereType<BombComponent>().toList()) {
+        if (!bomb.entered && bomb.position.y < size.y) bomb.entered = true;
+        if (bomb.entered && bomb.position.y > size.y + 120) {
+          bomb.removeFromParent(); // missing a bomb is free
+        }
+      }
+    }
+    super.update(dt);
+  }
+```
+
+  Change it to:
+
+```dart
+  @override
+  void update(double dt) {
+    // Check positions before super.update so that externally-mutated positions
+    // (e.g. in tests) are visible before child update() resets them via ArcMotion.
+    if (_playing) {
+      for (final letter in children.whereType<LetterComponent>().toList()) {
+        if (!letter.entered && letter.position.y < size.y) letter.entered = true;
+        if (letter.entered && letter.position.y > size.y + 120) {
+          letter.removeFromParent();
+          rules.onLetterMissed();
+          haptics.onMiss();
+          audio.playMiss();
+          _checkGameOver();
+        }
+      }
+      for (final bomb in children.whereType<BombComponent>().toList()) {
+        if (!bomb.entered && bomb.position.y < size.y) bomb.entered = true;
+        if (bomb.entered && bomb.position.y > size.y + 120) {
+          bomb.removeFromParent(); // missing a bomb is free
+        }
+      }
+    }
+
+    // Hit-stop: a brief slowdown of the simulation on a successful slice, for
+    // impact. The countdown itself uses the real (unscaled) dt so it always
+    // recovers, even at very low frame rates.
+    if (_hitStopRemainingMs > 0) {
+      _hitStopRemainingMs -= dt * 1000;
+      super.update(dt * AlaifMotion.hitStopScale);
+      return;
+    }
+    super.update(dt);
+  }
+```
+
+  Then add the hit-stop field. The current field declarations near the top of
+  the class are:
+
+```dart
+  String _settingsReturnOverlay = 'menu';
+  final Random _random;
+  Vector2? _lastSlicePosition;
+```
+
+  Change them to:
+
+```dart
+  String _settingsReturnOverlay = 'menu';
+  final Random _random;
+  Vector2? _lastSlicePosition;
+
+  /// Remaining real-time milliseconds of the current hit-stop. While > 0,
+  /// [update] scales the simulation `dt` by [AlaifMotion.hitStopScale].
+  double _hitStopRemainingMs = 0;
+```
+
+  Finally, trigger the hit-stop on slice. In `_sliceLetter` (after Task 9),
+  the method starts:
+
+```dart
+  void _sliceLetter(LetterComponent letter, Vector2 swipeFrom, Vector2 swipeTo) {
+    letter.sliced = true;
+    scoreState.registerHit();
+    haptics.onSlice();
+    audio.playSlice();
+    letter.removeFromParent();
+```
+
+  Change it to:
+
+```dart
+  void _sliceLetter(LetterComponent letter, Vector2 swipeFrom, Vector2 swipeTo) {
+    letter.sliced = true;
+    scoreState.registerHit();
+    haptics.onSlice();
+    audio.playSlice();
+    _hitStopRemainingMs = AlaifMotion.hitStopMs.toDouble();
+    letter.removeFromParent();
+```
+
+- [ ] Run the targeted test again and confirm it passes:
+
+```
+cd /Users/iammoo/code/alaif/app && flutter test test/game/alaif_game_test.dart 2>&1 | tail -50
+```
+
+  Expected: all tests in this file pass, including both new hit-stop tests.
+
+- [ ] Run the full suite and confirm it is green:
+
+```
+cd /Users/iammoo/code/alaif/app && flutter test 2>&1 | tail -20
+```
+
+  Expected: `All tests passed!`
+
+- [ ] Commit:
+
+```
+cd /Users/iammoo/code/alaif/app && git add lib/game/alaif_game.dart lib/ui/design_tokens.dart test/game/alaif_game_test.dart && git commit -m "feat: brief hit-stop on slice for impact juice"
+```
+
+---
+
+## Task 11: Final verification — analyze + full suite
+
+No code changes. Confirms the whole branch is clean: static analysis passes
+and every test (110 original + new ones from Tasks 1-10) is green.
 
 **Files:** none (verification only).
 
@@ -2091,9 +2927,12 @@ cd /Users/iammoo/code/alaif/app && flutter test 2>&1 | tail -20
 
   Expected: `All tests passed!`
 
-- [ ] If either command reports any issue, fix it in the relevant file from Tasks 1-9 (do not introduce new features), re-run both commands, and only proceed once both are clean.
+- [ ] If either command reports any issue, fix it in the relevant file from
+      Tasks 1-10 (do not introduce new features), re-run both commands, and
+      only proceed once both are clean.
 
-- [ ] No commit for this task unless a fix was needed in the previous step — if a fix was needed, commit it with:
+- [ ] No commit for this task unless a fix was needed in the previous step —
+      if a fix was needed, commit it with:
 
 ```
 cd /Users/iammoo/code/alaif/app && git add -A && git commit -m "fix: address flutter analyze / test issues from device review 1 fixes"

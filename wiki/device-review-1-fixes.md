@@ -21,14 +21,15 @@ Fixes for three issues found testing on a real device (`raw/review_1.md`). Build
 
 1. **Edge-to-edge**: `SystemUiMode.edgeToEdge`, remove `SafeArea` around `GameWidget`, `Scaffold(backgroundColor: AlaifColors.paper)`. Safe-area insets passed into the game for HUD placement; `controls` overlay (pause) gets `SafeArea`. Full-screen menu overlays already have SafeArea wrappers.
 2. **Slice dedup**: synchronous `sliced` flag on `LetterComponent`, checked in `trySlice` (also prevents double score/combo). Plus a ~60ms slice-SFX cooldown in `AudioService` as a backstop.
-3. **Ink-aware cutting**: at atlas build, pixel-scan each glyph image for its tight ink rect (one-time, 28 letters). Hit circle sized/centered from ink bounds. Cut line passes through ink center along the actual swipe direction; halves are rendered with half-plane `Path` clips and separate perpendicular to the cut.
+3. **Carrier-card slicing** *(supersedes the earlier ink-rect pixel-scan approach after device testing showed bare-glyph cuts can't feel good)*: each glyph is baked onto a slightly-rotated warm paper card with deckled edge + baked shadow, as one composite texture. Hit circle and cut geometry derive from the card's known geometry (no pixel scan). Cut passes through card center along the actual swipe direction via half-plane `Path` clips; halves separate with a swipe-scaled impulse. Juice: brief hit-stop on slice, SFX synced to the cut frame. Rationale: straight clips on thin/concave/dotted Arabic glyphs inevitably produce empty halves; vector outlines (no Flutter text-to-path, no stable path booleans) and shader masks don't change what lands in each half; a solid near-convex carrier does.
+4. **Font**: Katibeh (OFL 1.1, Google Fonts) replaces ArefRuqaa for hero glyphs — closest open Thuluth-flavored face (no genuine Thuluth digitization is openly licensed). User's larger spawn sizes (196–332) kept.
 
 ## Error handling
 
-Pixel scan failure → fall back to full texture bbox (current behavior). Empty ink rect → bbox. Insets unavailable → zero padding.
+Insets unavailable → zero padding. Degenerate swipe vector → horizontal cut fallback. Font load failure → system Arabic fallback renders (no crash).
 
 ## Testing
 
-TDD per task; existing 110 tests stay green. New tests: ink-rect scan math, sliced-flag dedup, SFX cooldown, swipe-angle cut geometry, inset-aware HUD positions.
+TDD per task; existing 110 tests stay green. New tests: sliced-flag dedup, SFX cooldown, carrier geometry (hit circle/cut center), swipe-angle cut geometry + impulse, hit-stop timing, inset-aware HUD positions, Katibeh asset registration.
 
 Related: [[alaif-m3-m4-design]], [[index]]
