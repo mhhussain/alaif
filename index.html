@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alaif: Ink Letter Slicer — Support &amp; Info</title>
+  <meta name="description" content="Alaif is a fast, tactile Arabic letter-slicing arcade game. Calligraphy meets Fruit Ninja — offline, no ads, no accounts. Support and FAQ.">
+  <style>
+    :root {
+      --paper: #EDE7D8;
+      --paper-deep: #E4DCC8;
+      --ink: #1B1712;
+      --ink-soft: #2A251E;
+      --ink-muted: #867C6C;
+      --hairline: rgba(27, 23, 18, 0.14);
+      --seal: #B23A2B;
+      --gold: #A8842F;
+      --card: #F7F1E3;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(180deg, var(--paper) 0%, var(--paper-deep) 100%);
+      color: var(--ink-soft);
+      font-family: Georgia, 'Times New Roman', serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 680px; margin: 0 auto; padding: 48px 24px 64px; }
+    header { text-align: center; margin-bottom: 48px; }
+    .brand {
+      display: inline-block;
+      color: var(--seal);
+      font-size: 56px;
+      line-height: 1;
+      margin-bottom: 16px;
+    }
+    h1 { color: var(--ink); font-size: 32px; letter-spacing: 0.5px; }
+    .subtitle { color: var(--ink-muted); font-size: 18px; margin-top: 8px; font-style: italic; }
+    .rule { width: 64px; height: 2px; background: var(--seal); margin: 24px auto; border: none; }
+    .tagline { font-size: 18px; max-width: 540px; margin: 0 auto; }
+    section { margin-top: 44px; }
+    h2 {
+      color: var(--ink);
+      font-size: 22px;
+      border-bottom: 1px solid var(--hairline);
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+    }
+    ul { padding-left: 22px; }
+    li { margin-bottom: 8px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--hairline);
+      border-radius: 6px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(27, 23, 18, 0.08);
+    }
+    .card h3 { color: var(--ink); font-size: 17px; margin-bottom: 6px; }
+    a { color: var(--seal); }
+    .contact {
+      text-align: center;
+      background: var(--ink);
+      color: var(--paper);
+      border-radius: 6px;
+      padding: 28px 24px;
+    }
+    .contact h2 { color: var(--paper); border: none; margin-bottom: 8px; padding: 0; }
+    .contact a { color: var(--gold); font-size: 18px; }
+    .contact p { color: rgba(237, 231, 216, 0.75); }
+    footer {
+      margin-top: 56px;
+      text-align: center;
+      color: var(--ink-muted);
+      font-size: 14px;
+      border-top: 1px solid var(--hairline);
+      padding-top: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">ا</div>
+      <h1>Alaif: Ink Letter Slicer</h1>
+      <p class="subtitle">Slice Arabic letters &amp; ink</p>
+      <hr class="rule">
+      <p class="tagline">Calligraphy meets Fruit Ninja. Swipe to slice drifting Arabic letters on
+      warm paper cards, chain combos, dodge ink bombs. Offline, no ads, no accounts.</p>
+    </header>
+
+    <section>
+      <h2>About the game</h2>
+      <p>Alaif is a fast, tactile letter-slicing arcade game inspired by Thuluth-style Arabic
+      calligraphy. Letters drift up across warm, deckle-edged paper cards — swipe your finger to
+      slice them with a satisfying ink-blade cut. Chain three or more letters in a single stroke
+      for a gold combo, and watch out for ink bombs.</p>
+      <p style="margin-top: 12px;">This is an arcade game, not a learning app — the letters are
+      here for their shape and rhythm, not as a lesson.</p>
+    </section>
+
+    <section>
+      <h2>Frequently asked questions</h2>
+      <div class="card">
+        <h3>Does Alaif need an internet connection?</h3>
+        <p>No. Alaif runs entirely on your device — no accounts, no sign-in, no ads, no in-app
+        purchases, and no network connection of any kind.</p>
+      </div>
+      <div class="card">
+        <h3>Where is my high score stored?</h3>
+        <p>Locally, on your phone only. Deleting the app deletes your high score; it is not synced
+        or backed up anywhere else.</p>
+      </div>
+      <div class="card">
+        <h3>How do I turn off sound, music, or vibration?</h3>
+        <p>Open <em>Settings</em> from the main menu or the pause screen. Sound effects, music,
+        and haptics can each be toggled independently.</p>
+      </div>
+      <div class="card">
+        <h3>How do lives work?</h3>
+        <p>You start with 3 lives. Letting a letter fall un-sliced costs a life, and so does
+        slicing an ink bomb. The run ends when all three are gone.</p>
+      </div>
+      <div class="card">
+        <h3>I found a bug — what should I do?</h3>
+        <p>Email the address below with your device model, iOS version, and a short description
+        of what happened. Screenshots or screen recordings help a lot.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Privacy</h2>
+      <p>Alaif collects <strong>no data</strong>. There are no analytics, no trackers, no
+      advertising identifiers, and no network calls. Everything — including your best score and
+      your settings — lives only on your device.</p>
+    </section>
+
+    <section class="contact" id="contact">
+      <h2>Support</h2>
+      <p>Questions, bug reports, or feedback:</p>
+      <p><a href="mailto:moohh91@gmail.com">moohh91@gmail.com</a></p>
+      <p style="margin-top: 12px; font-size: 14px;">Replies usually within a few days.</p>
+    </section>
+
+    <footer>
+      <p>© 2026 Mohammed Hussain · Alaif v1.0 · made offline</p>
+    </footer>
+  </div>
+</body>
+</html>
