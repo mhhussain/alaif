@@ -30,6 +30,20 @@ void main() {
     }
   });
 
+  test('bomb burst spawns bombInkParticles dark ink splats within the speed range', () {
+    final particles = spawnBombBurst(center, Random(7));
+    expect(particles.length, AlaifMotion.bombInkParticles);
+    for (final p in particles) {
+      expect(p.color, AlaifColors.ink);
+      expect(p.lifeMs, AlaifMotion.bombParticleLifeMs);
+      expect(p.position, center);
+      expect(p.velocity.length,
+          greaterThanOrEqualTo(AlaifMotion.bombParticleSpeedMin));
+      expect(p.velocity.length,
+          lessThanOrEqualTo(AlaifMotion.bombParticleSpeedMax));
+    }
+  });
+
   test('particles move, age, fade, and die', () {
     final p = InkParticle(
       position: Vector2.zero(),

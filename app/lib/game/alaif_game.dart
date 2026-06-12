@@ -72,8 +72,10 @@ class AlaifGame extends FlameGame {
   Future<void> onLoad() async {
     await atlas.load();
     audio.enabled = await settings.soundEnabled();
+    audio.musicEnabled = await settings.musicEnabled();
     haptics.enabled = await settings.hapticsEnabled();
     unawaited(audio.preload()); // fire-and-forget; failures are silent
+    unawaited(audio.playBackgroundMusic()); // fire-and-forget; failures are silent
     await add(PaperBackground());
     // Register fallback builders so overlays.add/isActive work in test
     // environments where no GameWidget overlay entries are provided.
@@ -128,6 +130,7 @@ class AlaifGame extends FlameGame {
     }
     for (final bomb in children.whereType<BombComponent>().toList()) {
       if (segmentHitsCircle(from, to, bomb.position, bomb.hitRadius)) {
+        add(InkBurstComponent(particles: spawnBombBurst(bomb.position, _random)));
         bomb.removeFromParent();
         rules.onBombSliced();
         haptics.onBomb();
@@ -263,6 +266,7 @@ class AlaifGame extends FlameGame {
   void pauseGame() {
     if (!_playing || paused) return;
     pauseEngine();
+    audio.pauseBackgroundMusic();
     overlays.remove('controls');
     overlays.add('paused');
   }
@@ -271,6 +275,7 @@ class AlaifGame extends FlameGame {
     overlays.remove('paused');
     overlays.add('controls');
     resumeEngine();
+    audio.resumeBackgroundMusic();
   }
 
   void openHowTo() {
@@ -316,7 +321,12 @@ class AlaifGame extends FlameGame {
   @override
   void lifecycleStateChange(AppLifecycleState state) {
     super.lifecycleStateChange(state);
-    if (state != AppLifecycleState.resumed) pauseGame();
+    if (state != AppLifecycleState.resumed) {
+      pauseGame();
+      audio.pauseBackgroundMusic();
+    } else if (!overlays.isActive('paused')) {
+      audio.resumeBackgroundMusic();
+    }
   }
 }
 

@@ -53,6 +53,33 @@ void main() {
     expect(await game.settings.soundEnabled(), isFalse);
   });
 
+  testWidgets(
+      'switches reflect service state on the very first frame (no flash)',
+      (tester) async {
+    final game = AlaifGame();
+    game.audio.musicEnabled = false;
+    await tester.pumpWidget(MaterialApp(
+      theme: buildAlaifTheme(),
+      home: Scaffold(body: SettingsOverlay(game: game)),
+    ));
+    await tester.pump(); // first frame only, no settle
+
+    final switches = tester.widgetList<Switch>(find.byType(Switch)).toList();
+    expect(switches[1].value, isFalse); // Music row
+  });
+
+  testWidgets('toggling music persists and controls the audio service',
+      (tester) async {
+    final game = await pumpSettings(tester);
+    expect(game.audio.musicEnabled, isTrue);
+
+    await tester.tap(find.byType(Switch).at(1)); // second row: music
+    await tester.pumpAndSettle();
+
+    expect(game.audio.musicEnabled, isFalse);
+    expect(await game.settings.musicEnabled(), isFalse);
+  });
+
   testWidgets('toggling haptics persists and disables the haptics service',
       (tester) async {
     final game = await pumpSettings(tester);

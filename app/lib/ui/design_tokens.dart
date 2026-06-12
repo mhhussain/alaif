@@ -220,6 +220,13 @@ abstract class AlaifMotion {
   static const comboDustParticles = 18;
   static const comboFlashMs = 600; // combo callout fade
 
+  // Bomb feedback — dark ink splat thrown when a bomb is sliced. Bigger,
+  // slower, and longer-lived than a letter cut, reading as a heavy splash.
+  static const bombInkParticles = 24;
+  static const bombParticleSpeedMin = 150.0; // px/s
+  static const bombParticleSpeedMax = 420.0;
+  static const bombParticleLifeMs = 650;
+
   // Score / life pops.
   static const scorePopMs = 220;
   static const lifeLostFlashMs = 280;
