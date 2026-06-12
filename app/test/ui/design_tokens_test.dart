@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('spawn size tokens match the larger device-review-1 spawn sizes', () {
-    expect(AlaifGlyph.spawnSizeMin, 196.0);
-    expect(AlaifGlyph.spawnSizeMax, 332.0);
+    expect(AlaifGlyph.spawnSizeMin, 96.0);
+    expect(AlaifGlyph.spawnSizeMax, 132.0);
     expect(AlaifGlyph.spawnSizeMax, greaterThan(AlaifGlyph.spawnSizeMin));
   });
 
