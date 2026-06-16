@@ -32,7 +32,7 @@ void main() {
         .toList()
         .forEach((s) => s.removeFromParent());
     game.update(0);
-    game.add(Spawner(random: Random(seed)));
+    game.add(Spawner(random: Random(seed), autoSpawn: false));
     final scheduler = SurgeScheduler(random: Random(seed));
     game.add(scheduler);
     game.update(0); // mount both

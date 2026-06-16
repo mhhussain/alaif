@@ -32,15 +32,7 @@ class SurgeScheduler extends Component with HasGameReference<AlaifGame> {
   @override
   void onMount() {
     super.onMount();
-    final stage = stageFor(game.scoreState.score);
-    _untilNext = stage.surgeCadence;
-    // Align the baseline spawner so it does not fire during the first surge
-    // window. Without this, a freshly-mounted Spawner (untilNext = 0.5) fires
-    // inside the first surgeCadence update and inflates the live-item count.
-    final spawners = game.children.whereType<Spawner>();
-    if (spawners.isNotEmpty) {
-      spawners.first.deferNextSpawn(stage.surgeCadence + stage.baselineInterval);
-    }
+    _untilNext = stageFor(game.scoreState.score).surgeCadence;
   }
 
   @override

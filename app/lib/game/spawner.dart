@@ -13,20 +13,16 @@ import 'letter_component.dart';
 /// Baseline spawner. Each tick it reads the current [Stage] from the live
 /// score and emits a stage-scaled batch, never exceeding [maxConcurrentItems].
 class Spawner extends Component with HasGameReference<AlaifGame> {
-  Spawner({Random? random}) : _random = random ?? Random();
+  Spawner({Random? random, bool autoSpawn = true})
+      : _random = random ?? Random(),
+        _autoSpawn = autoSpawn;
 
   /// Fairness/readability cap: letters + bombs on screen at once.
   static const maxConcurrentItems = 12;
 
   final Random _random;
+  final bool _autoSpawn;
   double _untilNext = 0.5; // quick first spawn; thereafter the stage governs
-
-  /// Defers the next autonomous spawn by at least [delay] seconds.
-  /// Used by [SurgeScheduler] on mount so the baseline timer does not fire
-  /// inside the first surge window, keeping test assertions clean.
-  void deferNextSpawn(double delay) {
-    if (_untilNext < delay) _untilNext = delay;
-  }
 
   int get _liveCount =>
       game.children.whereType<LetterComponent>().length +
@@ -37,6 +33,7 @@ class Spawner extends Component with HasGameReference<AlaifGame> {
   @override
   void update(double dt) {
     if (!game.isPlaying) return;
+    if (!_autoSpawn) return;
     _untilNext -= dt;
     if (_untilNext <= 0) {
       final stage = stageFor(game.scoreState.score);
