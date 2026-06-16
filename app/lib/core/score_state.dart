@@ -1,7 +1,13 @@
+import 'dart:math';
+
 class ScoreState {
   static const pointsPerLetter = 10;
+
+  /// Minimum hits in one swipe to trigger the combo callout/dust (visual only).
   static const comboThreshold = 3;
-  static const comboBonusPerLetter = 5;
+
+  /// The swipe multiplier is capped at this many cuts.
+  static const comboMultiplierCap = 4;
 
   int _score = 0;
   int _hitsInSwipe = 0;
@@ -13,16 +19,17 @@ class ScoreState {
   /// Largest chain (hits in a single swipe) seen this run.
   int get bestCombo => _bestCombo;
 
+  /// Points awarded for a swipe of [cuts] letters: 10 * cuts * min(cuts, 4).
+  static int swipePoints(int cuts) =>
+      pointsPerLetter * cuts * min(cuts, comboMultiplierCap);
+
   void registerHit() {
     _hitsInSwipe += 1;
-    _score += pointsPerLetter;
   }
 
   void endSwipe() {
     if (_hitsInSwipe > _bestCombo) _bestCombo = _hitsInSwipe;
-    if (_hitsInSwipe >= comboThreshold) {
-      _score += _hitsInSwipe * comboBonusPerLetter;
-    }
+    _score += swipePoints(_hitsInSwipe);
     _hitsInSwipe = 0;
   }
 
