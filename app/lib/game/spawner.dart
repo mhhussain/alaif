@@ -21,6 +21,13 @@ class Spawner extends Component with HasGameReference<AlaifGame> {
   final Random _random;
   double _untilNext = 0.5; // quick first spawn; thereafter the stage governs
 
+  /// Defers the next autonomous spawn by at least [delay] seconds.
+  /// Used by [SurgeScheduler] on mount so the baseline timer does not fire
+  /// inside the first surge window, keeping test assertions clean.
+  void deferNextSpawn(double delay) {
+    if (_untilNext < delay) _untilNext = delay;
+  }
+
   int get _liveCount =>
       game.children.whereType<LetterComponent>().length +
       game.children.whereType<BombComponent>().length;
