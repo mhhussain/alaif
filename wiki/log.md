@@ -1,5 +1,8 @@
 # Log
 
+## [2026-06-16] decision | Difficulty v2 executed
+All 5 tasks of plans/2026-06-16-difficulty-v2 executed via subagent-driven development on design/difficulty-v2. 173 tests passing, flutter analyze clean. Stage model (stageFor) replaces DifficultyCurve; combo scoring 10×cuts×min(cuts,4) banked at endSwipe; stage-driven batch Spawner with 12-item concurrency cap + speed multiplier + public spawnItem; new SurgeScheduler (cadence/type-weight/boosted sub-spawns, capacity-gated); wired into startGame/quitToMenu. Caught+fixed a regression: an initial deferNextSpawn hack blanked the opening screen ~12s — replaced with an autoSpawn test seam (default true, no gameplay change). Final whole-branch review: ready to merge. PR opened; awaiting user review/manual merge.
+
 ## [2026-06-16] decision | Difficulty v2 implementation plan written
 5-task TDD plan at plans/2026-06-16-difficulty-v2 implementing [[difficulty-design]]: (1) pure Stage model + stageFor(score) replacing DifficultyCurve; (2) combo-multiplier scoring 10×cuts×min(cuts,4) in score_state (scored at endSwipe); (3) stage-driven batch Spawner with concurrency cap + speedMultiplier + public spawnItem; (4) new SurgeScheduler component (cadence roll, type weights, ~0.15s boosted sub-spawns, capacity-gated); (5) wire SurgeScheduler into startGame/quitToMenu. Full code + tests per task. Branch design/difficulty-v2. Ready for subagent-driven execution.
 
