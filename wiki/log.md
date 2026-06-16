@@ -1,5 +1,8 @@
 # Log
 
+## [2026-06-16] decision | Difficulty v2 implementation plan written
+5-task TDD plan at plans/2026-06-16-difficulty-v2 implementing [[difficulty-design]]: (1) pure Stage model + stageFor(score) replacing DifficultyCurve; (2) combo-multiplier scoring 10×cuts×min(cuts,4) in score_state (scored at endSwipe); (3) stage-driven batch Spawner with concurrency cap + speedMultiplier + public spawnItem; (4) new SurgeScheduler component (cadence roll, type weights, ~0.15s boosted sub-spawns, capacity-gated); (5) wire SurgeScheduler into startGame/quitToMenu. Full code + tests per task. Branch design/difficulty-v2. Ready for subagent-driven execution.
+
 ## [2026-06-16] decision | Difficulty v2 design approved
 Brainstormed and approved [[difficulty-design]]: score-driven discrete stages (Calm/Brisk/Frenzy), score thresholds advance stages; stage-scaled baseline (1–3 letters) + faster intervals/letter speed; timed-cadence surges (letter/bomb/both) with escalating type weights and 3→8 counts; combo scoring = 10×cuts×min(cuts,4); design-floor cap (interval ≥0.55s, ~12 concurrent). Supersedes v1 time-based ramp. Branch design/difficulty-v2. Docs only; awaiting user review before implementation plan.
 
