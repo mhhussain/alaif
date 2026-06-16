@@ -12,6 +12,7 @@
 
 ## Specs & Plans
 - [[alaif-v1-design]] — approved v1 design spec: decisions, architecture, gameplay, roadmap. (2026-06-09)
+- [[difficulty-design]] — v2 difficulty & spawning spec: score-driven stages, surges, combo multipliers, caps. (2026-06-16)
 - [[alaif-m3-m4-design]] — M3+M4 spec: Ink & Paper adoption, juice, menus; file map + decisions. (2026-06-09)
 - [[device-review-1-fixes]] — spec for device-test fixes: edge-to-edge screen, slice SFX dedup, ink-aware cutting. (2026-06-10)
 - [plans/2026-06-09-alaif-core-game-m0-m2](plans/2026-06-09-alaif-core-game-m0-m2.md) — implementation plan for M0–M2: 15 TDD tasks from scaffold to playable Classic mode. ✅ Executed. (2026-06-09)

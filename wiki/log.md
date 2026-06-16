@@ -1,5 +1,8 @@
 # Log
 
+## [2026-06-16] decision | Difficulty v2 design approved
+Brainstormed and approved [[difficulty-design]]: score-driven discrete stages (Calm/Brisk/Frenzy), score thresholds advance stages; stage-scaled baseline (1–3 letters) + faster intervals/letter speed; timed-cadence surges (letter/bomb/both) with escalating type weights and 3→8 counts; combo scoring = 10×cuts×min(cuts,4); design-floor cap (interval ≥0.55s, ~12 concurrent). Supersedes v1 time-based ramp. Branch design/difficulty-v2. Docs only; awaiting user review before implementation plan.
+
 ## [2026-06-11] decision | Audio/haptics/bomb FX/topbar fixes plan written
 4-task TDD plan at plans/2026-06-11-polish-2-fixes: AudioService bgm controls wired into AlaifGame lifecycle, AndroidManifest VIBRATE permission, spawnBombBurst ink-splat reusing InkBurstComponent, ControlsOverlay padding fix to clear HUD lives dots. Branch fix/polish-2. Ready for subagent-driven execution.
 
