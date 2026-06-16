@@ -22,7 +22,8 @@ void main() {
     expect(hud.size, game.size);
     expect(hud.scoreText, '0');
 
-    game.scoreState.registerHit(); // +10
+    game.scoreState.registerHit(); // queue one hit
+    game.scoreState.endSwipe(); // finalise: score = 10
     expect(hud.scoreText, '10');
   });
 

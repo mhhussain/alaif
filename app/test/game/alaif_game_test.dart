@@ -97,6 +97,7 @@ void main() {
     game.update(0); // mount
 
     game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.endSwipe(); // finalise scoring (score is committed on swipe end)
     game.update(0); // process removal/additions
 
     expect(game.scoreState.score, ScoreState.pointsPerLetter);
@@ -116,6 +117,7 @@ void main() {
     // processed (Flame defers removeFromParent to the next update tick).
     game.trySlice(Vector2(0, 300), Vector2(200, 300));
     game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.endSwipe(); // finalise scoring (score is committed on swipe end)
     game.update(0); // process removal/additions
 
     expect(game.scoreState.score, ScoreState.pointsPerLetter);
