@@ -2,6 +2,7 @@ import 'package:alaif/core/arc_motion.dart';
 import 'package:alaif/core/score_state.dart';
 import 'package:alaif/game/alaif_game.dart';
 import 'package:alaif/game/bomb_component.dart';
+import 'package:alaif/game/surge_scheduler.dart';
 import 'package:alaif/game/combo_callout.dart';
 import 'package:alaif/game/ink_burst_component.dart';
 import 'package:alaif/game/letter_component.dart';
@@ -97,6 +98,7 @@ void main() {
     game.update(0); // mount
 
     game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.endSwipe(); // finalise scoring (score is committed on swipe end)
     game.update(0); // process removal/additions
 
     expect(game.scoreState.score, ScoreState.pointsPerLetter);
@@ -116,6 +118,7 @@ void main() {
     // processed (Flame defers removeFromParent to the next update tick).
     game.trySlice(Vector2(0, 300), Vector2(200, 300));
     game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.endSwipe(); // finalise scoring (score is committed on swipe end)
     game.update(0); // process removal/additions
 
     expect(game.scoreState.score, ScoreState.pointsPerLetter);
@@ -567,6 +570,25 @@ void main() {
     expect(game.overlays.isActive('paused'), isFalse);
     game.closeSettings();
     expect(game.overlays.isActive('paused'), isTrue);
+  });
+
+  testWithGame<AlaifGame>('startGame installs exactly one SurgeScheduler',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    game.update(0);
+    game.startGame();
+    game.update(0);
+    expect(game.children.whereType<SurgeScheduler>().length, 1);
+  });
+
+  testWithGame<AlaifGame>('quitToMenu removes the SurgeScheduler',
+      AlaifGame.new, (game) async {
+    game.startGame();
+    game.update(0);
+    expect(game.children.whereType<SurgeScheduler>().length, 1);
+    game.quitToMenu();
+    game.update(0);
+    expect(game.children.whereType<SurgeScheduler>().length, 0);
   });
 
   testWithGame<AlaifGame>('quitToMenu clears the board and returns to menu',

@@ -1,5 +1,14 @@
 # Log
 
+## [2026-06-16] decision | Difficulty v2 executed
+All 5 tasks of plans/2026-06-16-difficulty-v2 executed via subagent-driven development on design/difficulty-v2. 173 tests passing, flutter analyze clean. Stage model (stageFor) replaces DifficultyCurve; combo scoring 10×cuts×min(cuts,4) banked at endSwipe; stage-driven batch Spawner with 12-item concurrency cap + speed multiplier + public spawnItem; new SurgeScheduler (cadence/type-weight/boosted sub-spawns, capacity-gated); wired into startGame/quitToMenu. Caught+fixed a regression: an initial deferNextSpawn hack blanked the opening screen ~12s — replaced with an autoSpawn test seam (default true, no gameplay change). Final whole-branch review: ready to merge. PR opened; awaiting user review/manual merge.
+
+## [2026-06-16] decision | Difficulty v2 implementation plan written
+5-task TDD plan at plans/2026-06-16-difficulty-v2 implementing [[difficulty-design]]: (1) pure Stage model + stageFor(score) replacing DifficultyCurve; (2) combo-multiplier scoring 10×cuts×min(cuts,4) in score_state (scored at endSwipe); (3) stage-driven batch Spawner with concurrency cap + speedMultiplier + public spawnItem; (4) new SurgeScheduler component (cadence roll, type weights, ~0.15s boosted sub-spawns, capacity-gated); (5) wire SurgeScheduler into startGame/quitToMenu. Full code + tests per task. Branch design/difficulty-v2. Ready for subagent-driven execution.
+
+## [2026-06-16] decision | Difficulty v2 design approved
+Brainstormed and approved [[difficulty-design]]: score-driven discrete stages (Calm/Brisk/Frenzy), score thresholds advance stages; stage-scaled baseline (1–3 letters) + faster intervals/letter speed; timed-cadence surges (letter/bomb/both) with escalating type weights and 3→8 counts; combo scoring = 10×cuts×min(cuts,4); design-floor cap (interval ≥0.55s, ~12 concurrent). Supersedes v1 time-based ramp. Branch design/difficulty-v2. Docs only; awaiting user review before implementation plan.
+
 ## [2026-06-11] decision | Audio/haptics/bomb FX/topbar fixes plan written
 4-task TDD plan at plans/2026-06-11-polish-2-fixes: AudioService bgm controls wired into AlaifGame lifecycle, AndroidManifest VIBRATE permission, spawnBombBurst ink-splat reusing InkBurstComponent, ControlsOverlay padding fix to clear HUD lives dots. Branch fix/polish-2. Ready for subagent-driven execution.
 

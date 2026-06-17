@@ -24,6 +24,7 @@ import 'hud.dart';
 import 'paper_background.dart';
 import 'sliced_halves.dart';
 import 'spawner.dart';
+import 'surge_scheduler.dart';
 
 class AlaifGame extends FlameGame {
   AlaifGame({
@@ -102,10 +103,12 @@ class AlaifGame extends FlameGame {
             c is LetterComponent ||
             c is BombComponent ||
             c is SlicedHalf ||
-            c is Spawner)
+            c is Spawner ||
+            c is SurgeScheduler)
         .toList()
         .forEach((c) => c.removeFromParent());
     add(Spawner());
+    add(SurgeScheduler());
     if (!_hudInstalled) {
       _hudInstalled = true;
       add(BladeTrail());
@@ -309,7 +312,8 @@ class AlaifGame extends FlameGame {
             c is LetterComponent ||
             c is BombComponent ||
             c is SlicedHalf ||
-            c is Spawner)
+            c is Spawner ||
+            c is SurgeScheduler)
         .toList()
         .forEach((c) => c.removeFromParent());
     overlays.remove('paused');

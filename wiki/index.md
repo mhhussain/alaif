@@ -12,6 +12,7 @@
 
 ## Specs & Plans
 - [[alaif-v1-design]] — approved v1 design spec: decisions, architecture, gameplay, roadmap. (2026-06-09)
+- [[difficulty-design]] — v2 difficulty & spawning spec: score-driven stages, surges, combo multipliers, caps. (2026-06-16)
 - [[alaif-m3-m4-design]] — M3+M4 spec: Ink & Paper adoption, juice, menus; file map + decisions. (2026-06-09)
 - [[device-review-1-fixes]] — spec for device-test fixes: edge-to-edge screen, slice SFX dedup, ink-aware cutting. (2026-06-10)
 - [plans/2026-06-09-alaif-core-game-m0-m2](plans/2026-06-09-alaif-core-game-m0-m2.md) — implementation plan for M0–M2: 15 TDD tasks from scaffold to playable Classic mode. ✅ Executed. (2026-06-09)
@@ -20,3 +21,4 @@
 - [plans/2026-06-10-device-review-1-fixes](plans/2026-06-10-device-review-1-fixes.md) — 11-task TDD plan for device review 1 fixes (rev 2: carrier-card slicing + Katibeh). ✅ Executed. (2026-06-11)
 - [[audio-haptics-bomb-topbar-fixes]] — spec for bg music loop, Android haptics permission, bomb ink-splat FX, pause button/HUD overlap fix. (2026-06-11)
 - [plans/2026-06-11-polish-2-fixes](plans/2026-06-11-polish-2-fixes.md) — 4-task TDD plan for bg music, haptics permission, bomb ink-splat, topbar fix. Branch fix/polish-2. (2026-06-11)
+- [plans/2026-06-16-difficulty-v2](plans/2026-06-16-difficulty-v2.md) — 5-task TDD plan for difficulty v2: Stage model, combo scoring, batch spawner + cap, SurgeScheduler, lifecycle wiring. ✅ Executed (173 tests). Branch design/difficulty-v2. (2026-06-16)

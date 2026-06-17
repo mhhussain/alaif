@@ -28,7 +28,8 @@ void main() {
   testWidgets('game over shows final score, stats, and both actions',
       (tester) async {
     final game = AlaifGame();
-    game.scoreState.registerHit(); // final score 10 ≠ best combo 0
+    game.scoreState.registerHit(); // queue one hit
+    game.scoreState.endSwipe(); // finalise: score = 10, bestCombo = 1
     await tester.pumpWidget(MaterialApp(
       theme: buildAlaifTheme(),
       home: Scaffold(body: GameOverOverlay(game: game)),
@@ -40,7 +41,7 @@ void main() {
     expect(find.text('BEST'), findsOneWidget);
     expect(find.text('70'), findsOneWidget); // from mocked prefs
     expect(find.text('BEST COMBO'), findsOneWidget);
-    expect(find.text('0'), findsOneWidget); // best combo this run
+    expect(find.text('1'), findsOneWidget); // best combo this run (1 hit in the swipe)
     expect(find.text('Play again'), findsOneWidget);
     expect(find.text('Main menu'), findsOneWidget);
   });

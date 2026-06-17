@@ -13,23 +13,33 @@ void main() {
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWithGame<AlaifGame>('spawner emits letters or bombs over time',
-      AlaifGame.new, (game) async {
+  int liveItems(AlaifGame game) =>
+      game.children.whereType<LetterComponent>().length +
+      game.children.whereType<BombComponent>().length;
+
+  /// Replaces the auto-installed spawner with a seeded one so spawns are
+  /// deterministic, and returns it.
+  Spawner reseed(AlaifGame game, int seed) {
     game.startGame();
     game.update(0);
-    game.children.whereType<Spawner>().toList().forEach((s) => s.removeFromParent());
+    game.children
+        .whereType<Spawner>()
+        .toList()
+        .forEach((s) => s.removeFromParent());
     game.update(0);
-    game.add(Spawner(random: Random(42)));
+    final spawner = Spawner(random: Random(seed));
+    game.add(spawner);
     game.update(0); // mount
+    return spawner;
+  }
 
-    // Advance well past the first spawn delay in small ticks.
+  testWithGame<AlaifGame>('spawner emits items over time', AlaifGame.new,
+      (game) async {
+    reseed(game, 42);
     for (var i = 0; i < 30; i++) {
       game.update(0.1);
     }
-
-    final flying = game.children.whereType<LetterComponent>().length +
-        game.children.whereType<BombComponent>().length;
-    expect(flying, greaterThan(0));
+    expect(liveItems(game), greaterThan(0));
   });
 
   testWithGame<AlaifGame>('startGame installs exactly one spawner',
@@ -41,38 +51,43 @@ void main() {
     expect(game.children.whereType<Spawner>().length, 1);
   });
 
-  /// Starts the game with a freshly-seeded [Spawner], advances until the
-  /// first letter appears, and returns its spawn-toss angle.
-  Future<double> firstSpawnedLetterAngle(AlaifGame game, int seed) async {
-    game.startGame();
+  testWithGame<AlaifGame>('spawnItem adds a bomb when bomb: true',
+      AlaifGame.new, (game) async {
+    final spawner = reseed(game, 1);
+    spawner.spawnItem(bomb: true, speedMultiplier: 1.0);
     game.update(0);
-    game.children.whereType<Spawner>().toList().forEach((s) => s.removeFromParent());
-    game.update(0);
-    game.add(Spawner(random: Random(seed)));
-    game.update(0); // mount
+    expect(game.children.whereType<BombComponent>().length, 1);
+    expect(game.children.whereType<LetterComponent>().length, 0);
+  });
 
-    for (var i = 0; i < 30; i++) {
-      game.update(0.1);
-      final letters = game.children.whereType<LetterComponent>().toList();
-      if (letters.isNotEmpty) {
-        return letters.first.angle;
-      }
+  testWithGame<AlaifGame>('spawnItem adds a letter when bomb: false',
+      AlaifGame.new, (game) async {
+    final spawner = reseed(game, 1);
+    spawner.spawnItem(bomb: false, speedMultiplier: 1.0);
+    game.update(0);
+    expect(game.children.whereType<LetterComponent>().length, 1);
+    expect(game.children.whereType<BombComponent>().length, 0);
+  });
+
+  testWithGame<AlaifGame>('atCapacity true once at the cap', AlaifGame.new,
+      (game) async {
+    final spawner = reseed(game, 1);
+    expect(spawner.atCapacity, isFalse);
+    for (var i = 0; i < Spawner.maxConcurrentItems; i++) {
+      spawner.spawnItem(bomb: false, speedMultiplier: 1.0);
+      game.update(0);
     }
-    fail('No letter spawned within 30 ticks for seed $seed');
-  }
-
-  testWithGame<AlaifGame>(
-      'spawned letters get a deterministic spawn-toss angle within ±0.12 rad',
-      AlaifGame.new, (game) async {
-    final angle = await firstSpawnedLetterAngle(game, 42);
-    expect(angle, inInclusiveRange(-0.12, 0.12));
+    expect(liveItems(game), Spawner.maxConcurrentItems);
+    expect(spawner.atCapacity, isTrue);
   });
 
-  testWithGame<AlaifGame>(
-      'the spawn-toss angle is deterministic for the same seed',
+  testWithGame<AlaifGame>('baseline never exceeds the concurrency cap',
       AlaifGame.new, (game) async {
-    final angle = await firstSpawnedLetterAngle(game, 42);
-    expect(angle, closeTo(-0.062405800083475696, 1e-9));
+    reseed(game, 7);
+    // Long run; baseline must keep emitting but stay capped.
+    for (var i = 0; i < 400; i++) {
+      game.update(0.1);
+    }
+    expect(liveItems(game), lessThanOrEqualTo(Spawner.maxConcurrentItems));
   });
-
 }
