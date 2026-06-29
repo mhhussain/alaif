@@ -1,7 +1,9 @@
 import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
+import 'package:flutter/painting.dart' show TextDirection, TextSpan, TextStyle;
 
+import '../core/game_mode.dart';
 import '../core/game_rules.dart';
 import '../core/score_format.dart';
 import '../ui/design_tokens.dart';
@@ -21,6 +23,13 @@ class Hud extends PositionComponent with HasGameReference<AlaifGame> {
 
   static final TextPaint _labelPaint = TextPaint(style: AlaifType.label);
   static final TextPaint _scorePaint = TextPaint(style: AlaifType.scoreHud);
+
+  static TextPaint _wordLetterPaint(ui.Color color) =>
+      TextPaint(style: TextStyle(
+        fontFamily: AlaifFonts.arabic,
+        fontSize: 24,
+        color: color,
+      ));
 
   String get scoreText => formatScore(game.scoreState.score);
 
@@ -81,6 +90,31 @@ class Hud extends PositionComponent with HasGameReference<AlaifGame> {
             ..strokeWidth = 1.5,
         );
       }
+    }
+
+    if (game.mode == GameMode.wordBuilder) {
+      _renderWordProgress(canvas);
+    }
+  }
+
+  void _renderWordProgress(ui.Canvas canvas) {
+    final word = game.wordState.currentWord;
+    if (word.isEmpty) return;
+    final targetIndex = game.wordState.targetIndex;
+    const spacing = 32.0;
+    final totalWidth = (word.length - 1) * spacing;
+    final centerX = size.x / 2;
+    final y = livesRowCenterY + 30;
+
+    for (var i = 0; i < word.length; i++) {
+      // RTL visual order: index 0 is rightmost
+      final x = centerX + totalWidth / 2 - i * spacing;
+      final color = i < targetIndex
+          ? AlaifColors.hairline
+          : i == targetIndex
+              ? AlaifColors.ink
+              : AlaifColors.hairline.withAlpha(102); // ~40%
+      _wordLetterPaint(color).render(canvas, word[i], Vector2(x, y));
     }
   }
 }

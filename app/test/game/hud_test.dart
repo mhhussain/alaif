@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:alaif/core/game_mode.dart';
 import 'package:alaif/game/alaif_game.dart';
 import 'package:alaif/game/hud.dart';
 import 'package:alaif/ui/design_tokens.dart';
@@ -78,5 +79,16 @@ void main() {
 
     expect(hud.livesRowRight, game.size.x - AlaifSpacing.xl - 10);
     expect(hud.livesRowCenterY, AlaifSpacing.lg + 14 + 40);
+  });
+
+  testWithGame<AlaifGame>('hud render does not throw in word builder mode',
+      AlaifGame.new, (game) async {
+    game.startGame(mode: GameMode.wordBuilder);
+    game.update(0);
+    final hud = game.children.whereType<Hud>().single;
+    final recorder = ui.PictureRecorder();
+    // Should not throw even when a word is set and mid-progress
+    hud.render(ui.Canvas(recorder));
+    recorder.endRecording().dispose();
   });
 }
