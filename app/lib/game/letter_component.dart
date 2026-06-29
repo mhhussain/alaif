@@ -17,6 +17,7 @@ class LetterComponent extends PositionComponent {
     required this.motion,
     double targetSize = AlaifGlyph.spawnSizeMax,
     math.Random? random,
+    this.wordIndex,
   }) : _image = image {
     final longest = math.max(image.width, image.height).toDouble();
     final scale = targetSize / longest;
@@ -40,6 +41,7 @@ class LetterComponent extends PositionComponent {
 
   final String letter;
   final ArcMotion motion;
+  final int? wordIndex;
   final ui.Image _image;
   double _age = 0;
   late final double _hitRadius;
