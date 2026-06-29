@@ -132,7 +132,10 @@ class AlaifGame extends FlameGame {
       add(BladeTrail());
       add(Hud());
     }
-    if (paused) resumeEngine();
+    if (paused) {
+      resumeEngine();
+      audio.resumeBackgroundMusic();
+    }
     _playing = true;
     overlays.remove('menu');
     overlays.remove('gameOver');

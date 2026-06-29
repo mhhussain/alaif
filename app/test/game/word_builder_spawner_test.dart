@@ -6,6 +6,7 @@ import 'package:alaif/game/word_builder_spawner.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:alaif/core/game_mode.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

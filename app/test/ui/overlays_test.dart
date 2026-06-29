@@ -20,7 +20,8 @@ void main() {
     expect(find.text('A SLICING GAME'), findsOneWidget);
     expect(find.text('BEST'), findsOneWidget);
     expect(find.text('70'), findsOneWidget);
-    expect(find.text('Play'), findsOneWidget);
+    expect(find.text('Classic Mode'), findsOneWidget);
+    expect(find.text('Builder Mode'), findsOneWidget);
     expect(find.text('How to play'), findsOneWidget);
     expect(find.text('Sound'), findsOneWidget);
   });

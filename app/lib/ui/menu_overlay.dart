@@ -105,7 +105,7 @@ class MenuOverlay extends StatelessWidget {
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: game.startGame,
-                              child: const Text('Play'),
+                              child: const Text('Classic Mode'),
                             ),
                           ),
                           const SizedBox(height: AlaifSpacing.sm),
@@ -114,7 +114,7 @@ class MenuOverlay extends StatelessWidget {
                             child: OutlinedButton(
                               onPressed: () =>
                                   game.startGame(mode: GameMode.wordBuilder),
-                              child: const Text('Word Builder'),
+                              child: const Text('Builder Mode'),
                             ),
                           ),
                           const SizedBox(height: AlaifSpacing.md),

@@ -20,6 +20,10 @@ class Spawner extends Component with HasGameReference<AlaifGame> {
   /// Fairness/readability cap: letters + bombs on screen at once.
   static const maxConcurrentItems = 12;
 
+  /// Max radians a single launch is rotated off its base arc (~7°), so a
+  /// cluster spawned in one tick spreads out instead of stacking.
+  static const launchJitter = 0.12;
+
   final Random _random;
   final bool _autoSpawn;
   double _untilNext = 0.5; // quick first spawn; thereafter the stage governs
@@ -62,9 +66,12 @@ class Spawner extends Component with HasGameReference<AlaifGame> {
     final vx = (screen.x / 2 - x) * (0.3 + 0.4 * _random.nextDouble());
     final vy =
         -screen.y * (0.877 + 0.145 * _random.nextDouble()) * speedMultiplier;
+    // Per-glyph angle jitter so clustered launches fan out instead of overlapping.
+    final velocity = Vector2(vx, vy)
+      ..rotate((_random.nextDouble() * 2 - 1) * launchJitter);
     final motion = ArcMotion(
       start: start,
-      velocity: Vector2(vx, vy),
+      velocity: velocity,
       gravity: screen.y * 0.55,
     );
 
