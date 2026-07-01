@@ -6,7 +6,6 @@ void main() {
   test('spawn size tokens match the larger device-review-1 spawn sizes', () {
     expect(AlaifGlyph.spawnSizeMin, 96.0);
     expect(AlaifGlyph.spawnSizeMax, 96.0);
-    expect(AlaifGlyph.spawnSizeMax, greaterThan(AlaifGlyph.spawnSizeMin));
   });
 
   test('AlaifCard exposes paper-carrier-card tokens', () {
