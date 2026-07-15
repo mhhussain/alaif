@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
-import 'package:flutter/painting.dart' show TextDirection, TextSpan, TextStyle;
+import 'package:flutter/painting.dart' show TextStyle;
 
 import '../core/game_mode.dart';
 import '../core/game_rules.dart';
@@ -27,7 +27,7 @@ class Hud extends PositionComponent with HasGameReference<AlaifGame> {
   static TextPaint _wordLetterPaint(ui.Color color) =>
       TextPaint(style: TextStyle(
         fontFamily: AlaifFonts.arabic,
-        fontSize: 24,
+        fontSize: 40,
         color: color,
       ));
 
@@ -101,7 +101,7 @@ class Hud extends PositionComponent with HasGameReference<AlaifGame> {
     final word = game.wordState.currentWord;
     if (word.isEmpty) return;
     final targetIndex = game.wordState.targetIndex;
-    const spacing = 32.0;
+    const spacing = 52.0;
     final totalWidth = (word.length - 1) * spacing;
     final centerX = size.x / 2;
     final y = livesRowCenterY + 30;
@@ -114,7 +114,8 @@ class Hud extends PositionComponent with HasGameReference<AlaifGame> {
           : i == targetIndex
               ? AlaifColors.ink
               : AlaifColors.hairline.withAlpha(102); // ~40%
-      _wordLetterPaint(color).render(canvas, word[i], Vector2(x, y));
+      _wordLetterPaint(color)
+          .render(canvas, word[i], Vector2(x, y), anchor: Anchor.topCenter);
     }
   }
 }

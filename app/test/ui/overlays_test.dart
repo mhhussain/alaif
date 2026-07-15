@@ -21,7 +21,7 @@ void main() {
     expect(find.text('BEST'), findsOneWidget);
     expect(find.text('70'), findsOneWidget);
     expect(find.text('Classic Mode'), findsOneWidget);
-    expect(find.text('Builder Mode'), findsOneWidget);
+    expect(find.text('Word Builder'), findsOneWidget);
     expect(find.text('How to play'), findsOneWidget);
     expect(find.text('Sound'), findsOneWidget);
   });

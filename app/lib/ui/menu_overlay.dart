@@ -114,7 +114,7 @@ class MenuOverlay extends StatelessWidget {
                             child: OutlinedButton(
                               onPressed: () =>
                                   game.startGame(mode: GameMode.wordBuilder),
-                              child: const Text('Builder Mode'),
+                              child: const Text('Word Builder'),
                             ),
                           ),
                           const SizedBox(height: AlaifSpacing.md),

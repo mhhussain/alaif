@@ -110,16 +110,7 @@ class AlaifGame extends FlameGame {
     rules.reset();
     wordState.reset();
     _wordPauseRemaining = 0;
-    children
-        .where((c) =>
-            c is LetterComponent ||
-            c is BombComponent ||
-            c is SlicedHalf ||
-            c is Spawner ||
-            c is SurgeScheduler ||
-            c is WordBuilderSpawner)
-        .toList()
-        .forEach((c) => c.removeFromParent());
+    _clearGameplayComponents();
     if (_mode == GameMode.wordBuilder) {
       add(WordBuilderSpawner());
       _startNextWord();
@@ -378,10 +369,8 @@ class AlaifGame extends FlameGame {
     overlays.add(_settingsReturnOverlay);
   }
 
-  /// Abandon the current run (from pause or game over) and show the menu.
-  void quitToMenu() {
-    _playing = false;
-    if (paused) resumeEngine();
+  /// Remove all run-scoped components (glyphs, halves, spawners, schedulers).
+  void _clearGameplayComponents() {
     children
         .where((c) =>
             c is LetterComponent ||
@@ -392,6 +381,13 @@ class AlaifGame extends FlameGame {
             c is WordBuilderSpawner)
         .toList()
         .forEach((c) => c.removeFromParent());
+  }
+
+  /// Abandon the current run (from pause or game over) and show the menu.
+  void quitToMenu() {
+    _playing = false;
+    if (paused) resumeEngine();
+    _clearGameplayComponents();
     overlays.remove('paused');
     overlays.remove('gameOver');
     overlays.remove('controls');
