@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/game_mode.dart';
 import '../core/score_format.dart';
 import '../game/alaif_game.dart';
 import 'design_tokens.dart';
@@ -104,7 +105,16 @@ class MenuOverlay extends StatelessWidget {
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: game.startGame,
-                              child: const Text('Play'),
+                              child: const Text('Classic Mode'),
+                            ),
+                          ),
+                          const SizedBox(height: AlaifSpacing.sm),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: () =>
+                                  game.startGame(mode: GameMode.wordBuilder),
+                              child: const Text('Word Builder'),
                             ),
                           ),
                           const SizedBox(height: AlaifSpacing.md),

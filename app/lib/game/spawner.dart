@@ -2,12 +2,11 @@ import 'dart:math';
 
 import 'package:flame/components.dart';
 
-import '../core/arc_motion.dart';
 import '../core/difficulty_curve.dart';
 import '../core/glyph_atlas.dart';
-import '../ui/design_tokens.dart';
 import 'alaif_game.dart';
 import 'bomb_component.dart';
+import 'launch_arc.dart';
 import 'letter_component.dart';
 
 /// Baseline spawner. Each tick it reads the current [Stage] from the live
@@ -55,32 +54,19 @@ class Spawner extends Component with HasGameReference<AlaifGame> {
   /// Emits one item on a launch arc. [speedMultiplier] scales the vertical
   /// launch speed (stage letter-speed for baseline; boosted for surges).
   void spawnItem({required bool bomb, required double speedMultiplier}) {
-    final screen = game.size;
-    final x = screen.x * (0.15 + 0.7 * _random.nextDouble());
-    final start = Vector2(x, screen.y + 60);
-    // Drift toward screen center; apex lands at 70–95% of screen height.
-    final vx = (screen.x / 2 - x) * (0.3 + 0.4 * _random.nextDouble());
-    final vy =
-        -screen.y * (0.877 + 0.145 * _random.nextDouble()) * speedMultiplier;
-    final motion = ArcMotion(
-      start: start,
-      velocity: Vector2(vx, vy),
-      gravity: screen.y * 0.55,
-    );
+    final motion =
+        randomLaunchArc(game.size, _random, speedMultiplier: speedMultiplier);
 
     if (bomb) {
       game.add(BombComponent(motion: motion));
     } else {
       final letter =
           GlyphAtlas.letters[_random.nextInt(GlyphAtlas.letters.length)];
-      final targetSize = AlaifGlyph.spawnSizeMin +
-          (AlaifGlyph.spawnSizeMax - AlaifGlyph.spawnSizeMin) *
-              _random.nextDouble();
       game.add(LetterComponent(
         letter: letter,
         image: game.atlas.imageFor(letter),
         motion: motion,
-        targetSize: targetSize,
+        targetSize: randomGlyphTargetSize(_random),
         random: _random,
       ));
     }

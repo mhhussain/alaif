@@ -16,6 +16,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:alaif/core/game_mode.dart';
+import 'package:alaif/game/word_builder_spawner.dart';
+import 'package:alaif/game/spawner.dart';
 
 LetterComponent staticLetter(AlaifGame game, {double x = 100, double y = 300}) {
   return LetterComponent(
@@ -606,5 +609,182 @@ void main() {
     expect(game.overlays.isActive('menu'), isTrue);
     expect(game.overlays.isActive('paused'), isFalse);
     expect(game.overlays.isActive('controls'), isFalse);
+  });
+
+  testWithGame<AlaifGame>(
+      'startGame(wordBuilder) adds WordBuilderSpawner, not Spawner or SurgeScheduler',
+      AlaifGame.new, (game) async {
+    game.startGame(mode: GameMode.wordBuilder);
+    game.update(0);
+    expect(game.children.whereType<WordBuilderSpawner>().length, 1);
+    expect(game.children.whereType<Spawner>(), isEmpty);
+    expect(game.children.whereType<SurgeScheduler>(), isEmpty);
+  });
+
+  testWithGame<AlaifGame>(
+      'startGame(wordBuilder) sets a current word from the three-letter bucket',
+      AlaifGame.new, (game) async {
+    game.startGame(mode: GameMode.wordBuilder);
+    game.update(0);
+    expect(game.wordState.currentWord.length, 3); // score starts at 0 → 3-letter bucket
+    expect(game.wordState.targetIndex, 0);
+  });
+
+  testWithGame<AlaifGame>(
+      'slicing the current target letter in WB mode advances the target',
+      AlaifGame.new, (game) async {
+    game.startGame(mode: GameMode.wordBuilder);
+    game.update(0);
+
+    final word = game.wordState.currentWord;
+    game.add(LetterComponent(
+      letter: word[0],
+      image: game.atlas.imageFor(word[0]),
+      motion: ArcMotion(start: Vector2(100, 300), velocity: Vector2.zero(), gravity: 0),
+      wordIndex: 0,
+    ));
+    game.update(0);
+    game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.update(0);
+
+    expect(game.wordState.targetIndex, 1);
+    expect(game.rules.lives, 3); // no life lost
+  });
+
+  testWithGame<AlaifGame>(
+      'slicing an out-of-order letter in WB mode costs a life',
+      AlaifGame.new, (game) async {
+    game.startGame(mode: GameMode.wordBuilder);
+    game.update(0);
+
+    final word = game.wordState.currentWord;
+    // Add letter at index 1 (not the target, which is index 0)
+    game.add(LetterComponent(
+      letter: word[1],
+      image: game.atlas.imageFor(word[1]),
+      motion: ArcMotion(start: Vector2(100, 300), velocity: Vector2.zero(), gravity: 0),
+      wordIndex: 1,
+    ));
+    game.update(0);
+    game.trySlice(Vector2(0, 300), Vector2(200, 300));
+    game.update(0);
+
+    expect(game.rules.lives, 2);
+    expect(game.wordState.targetIndex, 0); // target did not advance
+  });
+
+  testWithGame<AlaifGame>(
+      'current target falling off screen in WB mode costs a life',
+      AlaifGame.new, (game) async {
+    game.startGame(mode: GameMode.wordBuilder);
+    game.update(0);
+
+    final word = game.wordState.currentWord;
+    final letter = LetterComponent(
+      letter: word[0],
+      image: game.atlas.imageFor(word[0]),
+      motion: ArcMotion(start: Vector2(100, 300), velocity: Vector2.zero(), gravity: 0),
+      wordIndex: 0,
+    )..entered = true;
+    game.add(letter);
+    game.update(0);
+
+    letter.position.y = game.size.y + 500;
+    game.update(0);
+
+    expect(game.rules.lives, 2);
+  });
+
+  testWithGame<AlaifGame>(
+      'non-target letter falling off screen in WB mode does NOT cost a life',
+      AlaifGame.new, (game) async {
+    game.startGame(mode: GameMode.wordBuilder);
+    game.update(0);
+
+    final word = game.wordState.currentWord;
+    final letter = LetterComponent(
+      letter: word[1],
+      image: game.atlas.imageFor(word[1]),
+      motion: ArcMotion(start: Vector2(100, 300), velocity: Vector2.zero(), gravity: 0),
+      wordIndex: 1,
+    )..entered = true;
+    game.add(letter);
+    game.update(0);
+
+    letter.position.y = game.size.y + 500;
+    game.update(0);
+
+    expect(game.rules.lives, 3);
+    expect(game.children.whereType<LetterComponent>(), isEmpty);
+  });
+
+  testWithGame<AlaifGame>(
+      'completing a word clears letters, adds points, and pauses briefly',
+      AlaifGame.new, (game) async {
+    game.startGame(mode: GameMode.wordBuilder);
+    game.update(0);
+
+    // Force a known 3-letter word
+    game.wordState.setWord('بيت');
+
+    void addAndSlice(String letter, int index) {
+      game.add(LetterComponent(
+        letter: letter,
+        image: game.atlas.imageFor(letter),
+        motion: ArcMotion(start: Vector2(100, 300), velocity: Vector2.zero(), gravity: 0),
+        wordIndex: index,
+      ));
+      game.update(0);
+      game.trySlice(Vector2(0, 300), Vector2(200, 300));
+      game.update(0);
+    }
+
+    addAndSlice('ب', 0);
+    addAndSlice('ي', 1);
+    addAndSlice('ت', 2);
+
+    // Word complete: score = 100, letters cleared, word pause active
+    expect(game.scoreState.score, 100);
+    expect(game.children.whereType<LetterComponent>(), isEmpty);
+    expect(game.isWordPaused, isTrue);
+  });
+
+  testWithGame<AlaifGame>(
+      'after the inter-word pause a new word begins', AlaifGame.new, (game) async {
+    game.startGame(mode: GameMode.wordBuilder);
+    game.update(0);
+    game.wordState.setWord('بيت');
+
+    void addAndSlice(String letter, int index) {
+      game.add(LetterComponent(
+        letter: letter,
+        image: game.atlas.imageFor(letter),
+        motion: ArcMotion(start: Vector2(100, 300), velocity: Vector2.zero(), gravity: 0),
+        wordIndex: index,
+      ));
+      game.update(0);
+      game.trySlice(Vector2(0, 300), Vector2(200, 300));
+      game.update(0);
+    }
+
+    addAndSlice('ب', 0);
+    addAndSlice('ي', 1);
+    addAndSlice('ت', 2);
+
+    expect(game.isWordPaused, isTrue);
+    game.update(0.6); // advance past the 0.5s pause
+    expect(game.isWordPaused, isFalse);
+    expect(game.wordState.currentWord, isNotEmpty);
+    expect(game.wordState.targetIndex, 0);
+  });
+
+  testWithGame<AlaifGame>(
+      'quitToMenu removes WordBuilderSpawner', AlaifGame.new, (game) async {
+    game.startGame(mode: GameMode.wordBuilder);
+    game.update(0);
+    expect(game.children.whereType<WordBuilderSpawner>().length, 1);
+    game.quitToMenu();
+    game.update(0);
+    expect(game.children.whereType<WordBuilderSpawner>(), isEmpty);
   });
 }

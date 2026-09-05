@@ -4,7 +4,7 @@
 - [[game-vision]] — core vision, constraints, and open questions for the Arabic Fruit Ninja game. (2026-06-09)
 
 ## Decisions
-*(none yet)*
+- [[word-builder-mode]] — Word Builder mode: ordered word slicing, scoring tiers, score-ramped buckets, no bombs, HUD word display. (2026-07-14)
 
 ## Research
 - [[design-brief-prompt]] — paste-ready Claude Code prompt for the UI/palette/look-and-feel design pass. (2026-06-09)

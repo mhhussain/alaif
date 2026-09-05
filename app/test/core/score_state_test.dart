@@ -81,4 +81,12 @@ void main() {
     expect(state.hitsInSwipe, 0);
     expect(state.bestCombo, 0);
   });
+
+  test('addPoints increases score directly', () {
+    final s = ScoreState();
+    s.addPoints(150);
+    expect(s.score, 150);
+    s.addPoints(50);
+    expect(s.score, 200);
+  });
 }

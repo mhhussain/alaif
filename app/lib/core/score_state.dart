@@ -33,6 +33,10 @@ class ScoreState {
     _hitsInSwipe = 0;
   }
 
+  void addPoints(int amount) {
+    _score += amount;
+  }
+
   void reset() {
     _score = 0;
     _hitsInSwipe = 0;

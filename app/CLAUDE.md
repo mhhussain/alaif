@@ -1,14 +1,27 @@
 # CLAUDE.md — app/
 
-Placeholder for the *Alaif* Flutter app (Android + iOS). No code yet — design is being brainstormed in `../wiki/`.
+The *Alaif* Flutter app (Android + iOS): Fruit Ninja–style slicing of Arabic
+letters, built with Flutter + Flame. Fully offline — no backend; local
+persistence via `shared_preferences`.
 
-## Planned (pending brainstorm finalization)
+## Layout
 
-- Framework: Flutter + likely the Flame game engine.
-- Backend: none preferred (offline-first, local persistence); Firebase only if a need is proven.
+- `lib/core/` — pure game logic (score, rules, difficulty stages, word state,
+  glyph atlas, hit testing). No Flame dependencies where avoidable.
+- `lib/game/` — Flame components (`AlaifGame`, spawners, letters, bombs, HUD,
+  blade, particles).
+- `lib/ui/` — Flutter overlays (menu, pause, game over, settings) and design
+  tokens (`design_tokens.dart`, "Ink & Paper" theme).
+- `lib/services/` — audio, haptics, settings, high scores.
+- `test/` mirrors `lib/`.
 
-## Rules once code exists
+## Modes
+
+`GameMode.classic` (endless slicing, bombs, surges) and `GameMode.wordBuilder`
+(slice the current word's letters in order — see `../wiki/word-builder-mode.md`).
+
+## Rules
 
 - Read `../CLAUDE.md` and `../wiki/index.md` for project context before working here.
 - Architecture/design decisions live in the wiki, not in code comments.
-- Keep this file updated as the stack is finalized.
+- Before claiming done: `flutter analyze` clean + `flutter test` green.

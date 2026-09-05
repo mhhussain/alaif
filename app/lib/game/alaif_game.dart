@@ -25,6 +25,10 @@ import 'paper_background.dart';
 import 'sliced_halves.dart';
 import 'spawner.dart';
 import 'surge_scheduler.dart';
+import '../core/game_mode.dart';
+import '../core/word_list.dart';
+import '../core/word_state.dart';
+import 'word_builder_spawner.dart';
 
 class AlaifGame extends FlameGame {
   AlaifGame({
@@ -55,6 +59,11 @@ class AlaifGame extends FlameGame {
   final SettingsStore settings;
   String _settingsReturnOverlay = 'menu';
   final Random _random;
+  GameMode _mode = GameMode.classic;
+  GameMode get mode => _mode;
+  final WordState wordState = WordState();
+  double _wordPauseRemaining = 0;
+  bool get isWordPaused => _wordPauseRemaining > 0;
   Vector2? _lastSlicePosition;
 
   /// Remaining real-time milliseconds of the current hit-stop. While > 0,
@@ -95,31 +104,50 @@ class AlaifGame extends FlameGame {
     overlays.add('menu');
   }
 
-  void startGame() {
+  void startGame({GameMode mode = GameMode.classic}) {
+    _mode = mode;
     scoreState.reset();
     rules.reset();
-    children
-        .where((c) =>
-            c is LetterComponent ||
-            c is BombComponent ||
-            c is SlicedHalf ||
-            c is Spawner ||
-            c is SurgeScheduler)
-        .toList()
-        .forEach((c) => c.removeFromParent());
-    add(Spawner());
-    add(SurgeScheduler());
+    wordState.reset();
+    _wordPauseRemaining = 0;
+    _clearGameplayComponents();
+    if (_mode == GameMode.wordBuilder) {
+      add(WordBuilderSpawner());
+      _startNextWord();
+    } else {
+      add(Spawner());
+      add(SurgeScheduler());
+    }
     if (!_hudInstalled) {
       _hudInstalled = true;
       add(BladeTrail());
       add(Hud());
     }
-    if (paused) resumeEngine(); // close the pause-then-restart gap
+    if (paused) {
+      resumeEngine();
+      audio.resumeBackgroundMusic();
+    }
     _playing = true;
     overlays.remove('menu');
     overlays.remove('gameOver');
     overlays.remove('paused');
     overlays.add('controls');
+  }
+
+  void _startNextWord() {
+    final bucket = scoreState.score < 300
+        ? threeLetterWords
+        : scoreState.score < 900
+            ? fourLetterWords
+            : fiveLetterWords;
+    wordState.setWord(bucket[_random.nextInt(bucket.length)]);
+  }
+
+  void _completeWord() {
+    scoreState.addPoints(wordState.pointsForCurrentWord);
+    children.whereType<LetterComponent>().toList().forEach((c) => c.removeFromParent());
+    audio.playCombo();
+    _wordPauseRemaining = 0.5;
   }
 
   /// Called by BladeTrail for each new swipe segment.
@@ -128,17 +156,23 @@ class AlaifGame extends FlameGame {
     for (final letter in children.whereType<LetterComponent>().toList()) {
       if (letter.sliced) continue;
       if (segmentHitsCircle(from, to, letter.position, letter.hitRadius)) {
-        _sliceLetter(letter, from, to);
+        if (_mode == GameMode.wordBuilder) {
+          _sliceLetterWordBuilder(letter);
+        } else {
+          _sliceLetter(letter, from, to);
+        }
       }
     }
-    for (final bomb in children.whereType<BombComponent>().toList()) {
-      if (segmentHitsCircle(from, to, bomb.position, bomb.hitRadius)) {
-        add(InkBurstComponent(particles: spawnBombBurst(bomb.position, _random)));
-        bomb.removeFromParent();
-        rules.onBombSliced();
-        haptics.onBomb();
-        audio.playBomb();
-        _checkGameOver();
+    if (_mode == GameMode.classic) {
+      for (final bomb in children.whereType<BombComponent>().toList()) {
+        if (segmentHitsCircle(from, to, bomb.position, bomb.hitRadius)) {
+          add(InkBurstComponent(particles: spawnBombBurst(bomb.position, _random)));
+          bomb.removeFromParent();
+          rules.onBombSliced();
+          haptics.onBomb();
+          audio.playBomb();
+          _checkGameOver();
+        }
       }
     }
   }
@@ -224,25 +258,57 @@ class AlaifGame extends FlameGame {
     ));
   }
 
+  void _sliceLetterWordBuilder(LetterComponent letter) {
+    letter.sliced = true;
+    letter.removeFromParent();
+    add(InkBurstComponent(particles: spawnCutBurst(letter.position, _random)));
+
+    if (letter.wordIndex == wordState.targetIndex) {
+      haptics.onSlice();
+      audio.playSlice();
+      _hitStopRemainingMs = AlaifMotion.hitStopMs.toDouble();
+      wordState.advanceTarget();
+      if (wordState.wordComplete) _completeWord();
+    } else {
+      haptics.onBomb();
+      audio.playBomb();
+      rules.onLetterMissed();
+      _checkGameOver();
+    }
+  }
+
   @override
   void update(double dt) {
     // Check positions before super.update so that externally-mutated positions
     // (e.g. in tests) are visible before child update() resets them via ArcMotion.
     if (_playing) {
+      if (_mode == GameMode.wordBuilder && _wordPauseRemaining > 0) {
+        _wordPauseRemaining -= dt;
+        if (_wordPauseRemaining <= 0) {
+          _startNextWord();
+        }
+      }
+
       for (final letter in children.whereType<LetterComponent>().toList()) {
         if (!letter.entered && letter.position.y < size.y) letter.entered = true;
         if (letter.entered && letter.position.y > size.y + 120) {
           letter.removeFromParent();
-          rules.onLetterMissed();
-          haptics.onMiss();
-          audio.playMiss();
-          _checkGameOver();
+          if (_mode == GameMode.classic ||
+              letter.wordIndex == wordState.targetIndex) {
+            rules.onLetterMissed();
+            haptics.onMiss();
+            audio.playMiss();
+            _checkGameOver();
+          }
         }
       }
-      for (final bomb in children.whereType<BombComponent>().toList()) {
-        if (!bomb.entered && bomb.position.y < size.y) bomb.entered = true;
-        if (bomb.entered && bomb.position.y > size.y + 120) {
-          bomb.removeFromParent(); // missing a bomb is free
+      // Bomb miss check (classic only — no bombs in WB mode)
+      if (_mode == GameMode.classic) {
+        for (final bomb in children.whereType<BombComponent>().toList()) {
+          if (!bomb.entered && bomb.position.y < size.y) bomb.entered = true;
+          if (bomb.entered && bomb.position.y > size.y + 120) {
+            bomb.removeFromParent();
+          }
         }
       }
     }
@@ -261,7 +327,7 @@ class AlaifGame extends FlameGame {
   void _checkGameOver() {
     if (!rules.isGameOver || !_playing) return;
     _playing = false;
-    unawaited(highScores.submit(scoreState.score)); // fire-and-forget by design
+    unawaited(highScores.submit(scoreState.score, mode: _mode)); // fire-and-forget by design
     overlays.remove('controls');
     overlays.add('gameOver');
   }
@@ -303,19 +369,25 @@ class AlaifGame extends FlameGame {
     overlays.add(_settingsReturnOverlay);
   }
 
-  /// Abandon the current run (from pause or game over) and show the menu.
-  void quitToMenu() {
-    _playing = false;
-    if (paused) resumeEngine();
+  /// Remove all run-scoped components (glyphs, halves, spawners, schedulers).
+  void _clearGameplayComponents() {
     children
         .where((c) =>
             c is LetterComponent ||
             c is BombComponent ||
             c is SlicedHalf ||
             c is Spawner ||
-            c is SurgeScheduler)
+            c is SurgeScheduler ||
+            c is WordBuilderSpawner)
         .toList()
         .forEach((c) => c.removeFromParent());
+  }
+
+  /// Abandon the current run (from pause or game over) and show the menu.
+  void quitToMenu() {
+    _playing = false;
+    if (paused) resumeEngine();
+    _clearGameplayComponents();
     overlays.remove('paused');
     overlays.remove('gameOver');
     overlays.remove('controls');

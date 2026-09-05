@@ -90,7 +90,7 @@ class GameOverOverlay extends StatelessWidget {
                       ),
                       const SizedBox(height: AlaifSpacing.xxl),
                       ElevatedButton(
-                        onPressed: game.startGame,
+                        onPressed: () => game.startGame(mode: game.mode),
                         child: const Text('Play again'),
                       ),
                       const SizedBox(height: AlaifSpacing.md),

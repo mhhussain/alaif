@@ -50,7 +50,7 @@ class PauseOverlay extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: game.startGame,
+                  onPressed: () => game.startGame(mode: game.mode),
                   child: const Text('Restart'),
                 ),
               ),

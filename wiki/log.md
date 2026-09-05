@@ -1,5 +1,8 @@
 # Log
 
+## [2026-07-14] decision | Word Builder mode decisions filed + review fixes
+Filed [[word-builder-mode]] decision page for branch feature/word-builder-mode (ordered slicing, 100/150/200 scoring tiers, 300/900 score buckets, no bombs, [1,3] clusters, target-only miss penalty, mode-keyed high scores). Two-axis code review applied: HUD word display enlarged 24px/32 to 40px/52 with topCenter anchor (was off-center at top-left anchor), launch physics deduplicated into lib/game/launch_arc.dart, run-cleanup filter extracted to _clearGameplayComponents, menu button renamed "Builder Mode" to "Word Builder", unused imports removed. 195 tests passing, analyze clean.
+
 ## [2026-06-16] decision | Difficulty v2 executed
 All 5 tasks of plans/2026-06-16-difficulty-v2 executed via subagent-driven development on design/difficulty-v2. 173 tests passing, flutter analyze clean. Stage model (stageFor) replaces DifficultyCurve; combo scoring 10×cuts×min(cuts,4) banked at endSwipe; stage-driven batch Spawner with 12-item concurrency cap + speed multiplier + public spawnItem; new SurgeScheduler (cadence/type-weight/boosted sub-spawns, capacity-gated); wired into startGame/quitToMenu. Caught+fixed a regression: an initial deferNextSpawn hack blanked the opening screen ~12s — replaced with an autoSpawn test seam (default true, no gameplay change). Final whole-branch review: ready to merge. PR opened; awaiting user review/manual merge.
 
